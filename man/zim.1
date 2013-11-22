@@ -1,0 +1,89 @@
+.TH ZIM "1" "April 2013" "zim 0.60" "User Commands"
+.SH NAME
+zim \- A Desktop Wiki Editor
+
+.SH SYNOPSIS
+usage: zim [OPTIONS] [NOTEBOOK [PAGE]]
+   or: zim \-\-server [OPTIONS] [NOTEBOOK]
+   or: zim \-\-export [OPTIONS] NOTEBOOK [PAGE]
+   or: zim \-\-search NOTEBOOK QUERY
+   or: zim \-\-index  [OPTIONS] NOTEBOOK
+   or: zim \-\-plugin PLUGIN [ARGUMENTS]
+   or: zim \-\-manual [OPTIONS] [PAGE]
+   or: zim \-\-help
+
+.SH DESCRIPTION
+Zim is a graphical text editor used to maintain a collection of wiki pages.
+Each page can contain links to other pages, simple formatting and images.
+Pages are stored in a folder structure, like in an outliner, and can have
+attachments. Creating a new page is as easy as linking to a nonexistent page.
+All data is stored in plain text files with wiki formatting. Various plugins
+provide additional functionality, like a task list manager, an equation
+editor, a tray icon, and support for version control.
+
+Zim can be used to:
+* Keep an archive of notes
+* Take notes during meetings or lectures
+* Organize task lists
+* Draft blog entries and emails
+* Do brainstorming
+.SH OPTIONS
+General Options:
+  \-\-gui           run the editor (this is the default)
+  \-\-server        run the web server
+  \-\-export        export to a different format
+  \-\-search        run a search query on a notebook
+  \-\-index         build an index for a notebook
+  \-\-plugin        call a specific plugin function
+  \-\-manual        open the user manual
+  \-V, \-\-verbose   print information to terminal
+  \-D, \-\-debug     print debug messages
+  \-v, \-\-version   print version and exit
+  \-h, \-\-help      print this text
+
+GUI Options:
+  \-\-list          show the list with notebooks instead of
+                  opening the default notebook
+  \-\-geometry      window size and position as WxH+X+Y
+  \-\-fullscreen    start in fullscreen mode
+  \-\-standalone     start a single instance, no background process
+
+Server Options:
+  \-\-port          port to use (defaults to 8080)
+  \-\-template      name of the template to use
+  \-\-gui           run the gui wrapper for the server
+
+Export Options:
+  \-\-format        format to use (defaults to 'html')
+  \-\-template      name of the template to use
+  \-o, \-\-output    output directory
+  \-\-root\-url      url to use for the document root
+  \-\-index\-page    index page name
+
+  You can use the export option to print a single page to stdout.
+  When exporting a whole notebook you need to provide a directory.
+
+Search Options:
+  None
+
+Index Options:
+  \-o, \-\-output    output file
+
+Try 'zim \-\-manual' for more help.
+
+.SH AUTHOR
+Jaap Karssenberg <jaap.karssenberg@gmail.com>
+
+.SH "SEE ALSO"
+The full documentation for
+.B zim
+is maintained as a zim notebook. The command
+.IP
+.B zim --manual
+.PP
+should give you access to the complete manual.
+
+The website for
+.B zim
+can be found at
+.I http://www.zim-wiki.org

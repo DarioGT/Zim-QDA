@@ -1,0 +1,13 @@
+Metadata-Version: 1.1
+Name: zim
+Version: 0.60
+Summary: Zim desktop wiki
+Home-page: http://www.zim-wiki.org
+Author: Jaap Karssenberg
+Author-email: jaap.karssenberg@gmail.com
+License: GPL v2+
+Description: UNKNOWN
+Platform: UNKNOWN
+Requires: gobject
+Requires: gtk
+Requires: xdg

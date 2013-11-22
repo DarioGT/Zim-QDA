@@ -1,0 +1,10 @@
+[Notebook]
+name=Zim Manual
+home=:Start
+icon=
+document_root=
+slow_fs=False
+version=0.4
+endofline=unix
+profile=None
+
