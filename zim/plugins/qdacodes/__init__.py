@@ -86,10 +86,10 @@ class QdaCodesPlugin(PluginClass):
     def _set_preferences(self):
         self._current_preferences = self._serialize_rebuild_on_preferences()
 
-        string = self.preferences['labels'].strip(' ,')
-
-        if string:
-            self.codes_labels = [s.strip() for s in self.preferences['labels'].split(',')]
+        sLabels = self.preferences['labels'].split(',')
+        if sLabels  :
+            self.codes_labels = [':{}'.format( s.strip()) for s in sLabels ]
+#             self.codes_labels = [s.strip() for s in self.preferences['labels'].split(',')]
         else:
             self.codes_labels = []
 
@@ -200,11 +200,13 @@ class QdaCodesPlugin(PluginClass):
     def _insert(self, page, parentid, children):
         # Helper function to insert codes in table
         c = self.index.db.cursor()
+        cNumber = 0
         for qCode  in children:
+            cNumber += 1
             c.execute(
-                'insert into qdacodes(source, parent, haschildren, description, citation)'
-                'values (?, ?, ?, ?, ?)',
-                (page.id, parentid, False ) + tuple(qCode)
+                'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
+                'values (?, ?, ?, ?, ?, ?)',
+                (page.id, parentid, cNumber ) + tuple(qCode)
             )
 
     def _extract_codes(self, parsetree):
@@ -230,7 +232,8 @@ class QdaCodesPlugin(PluginClass):
                 continue
 
             if self.codes_label_re.match(item):
-                codes.append(  ( item, self._getCitation(lines, index) ))
+                tag = self.codes_label_re.findall(item)[0]
+                codes.append(  ( item, self._getCitation(lines, index), tag ))
 
 #         print codes
 #         print '----------------'
@@ -300,7 +303,7 @@ class QdaCodesPlugin(PluginClass):
 
         return qCodesfound
 
-    def list_codes(self, parent=None):
+    def list_codes(self, parent=None, orderBy = 'source, citnumber'):
         '''List codes
         @param parent: the parent qCode (as returned by this method) or C{None} to list
         all top level codes
@@ -311,9 +314,11 @@ class QdaCodesPlugin(PluginClass):
 
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            cursor.execute('select * from qdacodes where parent=? order by description', (parentid,))
+            sqlStmt = 'select * from qdacodes where parent=? order by {0}'.format( orderBy )
+            cursor.execute( sqlStmt , (parentid,))
             for row in cursor:
                 yield row
+
 
     def get_code(self, qCodeid):
         cursor = self.index.db.cursor()

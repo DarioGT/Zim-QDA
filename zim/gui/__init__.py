@@ -2923,7 +2923,7 @@ class MainWindow(Window):
         n = ui.notebook.index.n_list_links(page, zim.index.LINK_DIR_BACKWARD)
         label = self.statusbar_backlinks_button.label
         label.set_text_with_mnemonic(
-            ngettext('%i _Backlink...', '%i _Backlinks...', n) % n)
+            ngettext('%i _Backlink...', '%i _Backlinks...', n) % n) # @UndefinedVariable
             # T: Label for button with backlinks in statusbar
         if n == 0:
             self.statusbar_backlinks_button.set_sensitive(False)
@@ -3267,7 +3267,7 @@ class MovePageDialog(Dialog):
         else:
             i = 0
 
-        label = ngettext(
+        label = ngettext( # @UndefinedVariable
             'Update %i page linking to this page',
             'Update %i pages linking to this page', i) % i
             # T: label in MovePage dialog - %i is number of backlinks
@@ -3316,7 +3316,7 @@ class RenamePageDialog(Dialog):
         else:
             i = 0
 
-        label = ngettext(
+        label = ngettext(  # @UndefinedVariable
             'Update %i page linking to this page',
             'Update %i pages linking to this page', i) % i
             # T: label in MovePage dialog - %i is number of backlinks
@@ -3387,7 +3387,7 @@ class DeletePageDialog(Dialog):
         else:
             i = 0
 
-        label = ngettext(
+        label = ngettext(  # @UndefinedVariable
             'Remove links from %i page linking to this page',
             'Remove links from %i pages linking to this page', i) % i
             # T: label in DeletePage dialog - %i is number of backlinks
@@ -3407,7 +3407,7 @@ class DeletePageDialog(Dialog):
         text = dir.get_file_tree_as_text(raw=True)
         n = len([l for l in text.splitlines() if not l.endswith('/')])
 
-        string = ngettext('%i file will be deleted', '%i files will be deleted', n) % n
+        string = ngettext('%i file will be deleted', '%i files will be deleted', n) % n  # @UndefinedVariable
             # T: label in the DeletePage dialog to warn user of attachments being deleted
         if n > 0:
             string = '<b>'+string+'</b>'

@@ -204,7 +204,7 @@ class WWWInterface(NotebookInterface):
                 content = [file.raw()]
                     # Will raise FileNotFound when file does not exist
                 headers['Content-Type'] = file.get_mimetype()
-             elif path.startswith('/+resources/'):
+            elif path.startswith('/+resources/'):
                 if self.template and self.template.resources_dir:
                     file = self.template.resources_dir.file(path[12:])
                     if not file.exists():
@@ -216,7 +216,7 @@ class WWWInterface(NotebookInterface):
                     content = [file.raw()]
                         # Will raise FileNotFound when file does not exist
                     headers['Content-Type'] = file.get_mimetype()
-                 else:
+                else:
                     raise PageNotFoundError(path)
             else:
                 # Must be a page or a namespace (html file or directory path)

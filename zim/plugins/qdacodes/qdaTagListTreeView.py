@@ -7,12 +7,11 @@ from __future__ import with_statement
 
 import gtk
 import pango
-import logging
 
 from zim.utils import natural_sorted
 from zim.gui.widgets import SingleClickTreeView
 
-from qdaSettings import  _NO_TAGS, logger
+from qdaSettings import  _NO_TAGS
 
 
 class TagListTreeView(SingleClickTreeView):
@@ -33,7 +32,6 @@ class TagListTreeView(SingleClickTreeView):
         self.qda_codes = qda_codes
 
         column = gtk.TreeViewColumn(_('Tags'))
-            # T: Column header for tag list in Qda Codes dialog
         self.append_column(column)
 
         cr1 = gtk.CellRendererText()

@@ -16,7 +16,6 @@ logger = logging.getLogger('zim.plugins.qdacodes')
 
 ui_actions = (
     # name, stock id, label, accelerator, tooltip, read only
-    # T: menu item
     ('show_qda_codes', 'zim-qda-codes', _('Qda Codes'), '', _('Qda Codes'), True),
 )
 
@@ -53,11 +52,9 @@ create table if not exists qdacodes (
     id INTEGER PRIMARY KEY,
     source INTEGER,
     parent INTEGER,
-    haschildren BOOLEAN,
-    open BOOLEAN,
-    prio INTEGER,
+    citnumber INTEGER,
     citation TEXT,
-    tags TEXT,
+    tag TEXT,
     description TEXT
 );
 '''
@@ -86,17 +83,19 @@ plugin_preferences = (
 
     # # key, type, label, default, validation
 
-    # T: label for plugin preferences dialog
-    ('tag_by_page', 'bool', _('Turn page name into tags for code items'), True),
-
     # T: label for plugin preferences dialog - labels are e.g. "CODE1", "CODE2",  ...
-    ('labels', 'string', _('Labels marking codes'), 'NQ, NE', check_class_allow_empty),
+    ('labels', 'string', _('Labels marking codes'), 'QDA, PROTO, OL', check_class_allow_empty),
 
     # T: subtree to search for codes - default is the whole tree (empty string means everything)
     ('included_subtrees', 'string', _('Subtree(s) to index'), '', check_class_allow_empty),
 
     # T: subtrees of the included subtrees to *not* search for codes - default is none
     ('excluded_subtrees', 'string', _('Subtree(s) to ignore'), '', check_class_allow_empty),
+
+    # T: namespace for summary 
+    ('namespace', 'string', _('Namespace'), ':QdaCodes'),
+    
+    
 )
 
 # Rebuild database table if any of these preferences changed.
