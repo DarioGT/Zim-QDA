@@ -94,7 +94,9 @@ plugin_preferences = (
 
     # T: namespace for summary 
     ('namespace', 'string', _('Namespace'), ':QdaCodes'),
-    
+
+    # T: Export only  CODE1, CODE2  ( dafault all ) 
+    ('export_only', 'string', _('Export codes'), '', check_class_allow_empty),
     
 )
 

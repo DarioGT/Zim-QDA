@@ -317,7 +317,17 @@ class QdaCodesTreeView(BrowserTreeView):
         myTag = ''
         myCode = ''
 
-        for row in self.plugin.list_codes(parent=None, orderBy='tag, parent, source, description, citnumber'):
+        sWhere = None 
+        exportOnly = self.plugin.preferences['export_only']
+        if exportOnly:
+            sWhere = ''
+            for s in exportOnly.split( ','):
+                sWhere += '\':{}\','.format( s.strip()) 
+            sWhere = 'tag in ({})'.format( sWhere[:-1] )  
+
+        sOrder = 'tag, parent, source, description, citnumber'
+
+        for row in self.plugin.list_codes(parent=None, orderBy= sOrder, whereStmt = sWhere ):
 
             path = self.plugin.get_path(row)
             if path is None:

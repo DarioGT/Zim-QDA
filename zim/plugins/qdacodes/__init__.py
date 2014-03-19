@@ -89,7 +89,6 @@ class QdaCodesPlugin(PluginClass):
         sLabels = self.preferences['labels'].split(',')
         if sLabels  :
             self.codes_labels = [':{}'.format( s.strip()) for s in sLabels ]
-#             self.codes_labels = [s.strip() for s in self.preferences['labels'].split(',')]
         else:
             self.codes_labels = []
 
@@ -303,7 +302,7 @@ class QdaCodesPlugin(PluginClass):
 
         return qCodesfound
 
-    def list_codes(self, parent=None, orderBy = 'source, citnumber'):
+    def list_codes(self, parent=None, orderBy = 'source, citnumber', whereStmt = '1=1'):
         '''List codes
         @param parent: the parent qCode (as returned by this method) or C{None} to list
         all top level codes
@@ -314,7 +313,7 @@ class QdaCodesPlugin(PluginClass):
 
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            sqlStmt = 'select * from qdacodes where parent=? order by {0}'.format( orderBy )
+            sqlStmt = 'select * from qdacodes where parent=? and {1} order by {0}'.format( orderBy, whereStmt )
             cursor.execute( sqlStmt , (parentid,))
             for row in cursor:
                 yield row
