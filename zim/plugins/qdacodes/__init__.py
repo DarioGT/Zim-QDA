@@ -88,7 +88,7 @@ class QdaCodesPlugin(PluginClass):
 
         sLabels = self.preferences['labels'].split(',')
         if sLabels  :
-            self.codes_labels = [':{}'.format( s.strip()) for s in sLabels ]
+            self.codes_labels = ['%{}'.format( s.strip().upper() ) for s in sLabels ]
         else:
             self.codes_labels = []
 
@@ -229,9 +229,9 @@ class QdaCodesPlugin(PluginClass):
         for index, item in enumerate(lines):
             if type(item) is tuple:
                 continue
-
-            if self.codes_label_re.match(item):
-                tag = self.codes_label_re.findall(item)[0]
+            
+            tag = item.split()[0].upper()
+            if tag in self.codes_labels:
                 codes.append(  ( item, self._getCitation(lines, index), tag ))
 
 #         print codes

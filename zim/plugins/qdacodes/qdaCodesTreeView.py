@@ -317,17 +317,17 @@ class QdaCodesTreeView(BrowserTreeView):
         myTag = ''
         myCode = ''
 
-        sWhere = None 
+        sWhere = None
         exportOnly = self.plugin.preferences['export_only']
         if exportOnly:
             sWhere = ''
-            for s in exportOnly.split( ','):
-                sWhere += '\':{}\','.format( s.strip()) 
-            sWhere = 'tag in ({})'.format( sWhere[:-1] )  
+            for s in exportOnly.split(','):
+                sWhere += '\'%{}\','.format(s.strip().upper() )
+            sWhere = 'tag in ({})'.format(sWhere[:-1])
 
         sOrder = 'tag, parent, source, description, citnumber'
 
-        for row in self.plugin.list_codes(parent=None, orderBy= sOrder, whereStmt = sWhere ):
+        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
             path = self.plugin.get_path(row)
             if path is None:
@@ -360,12 +360,12 @@ class QdaCodesTreeView(BrowserTreeView):
         path = self.plugin.preferences['namespace']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format( path, tag )  , open_page=False )
-            
-            masterPageIx += '[[{}]]\n'.format(  newpage.name )   
+            newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format(path, tag)  , open_page=False)
 
-        self.plugin.ui.append_text_to_page(path , masterPageIx )
-        newpage = Path( path )
+            masterPageIx += '[[{}]]\n'.format(newpage.name)
+
+        self.plugin.ui.append_text_to_page(path , masterPageIx)
+        newpage = Path(path)
         self.ui.open_page(newpage)
 
 

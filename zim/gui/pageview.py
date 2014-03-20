@@ -270,7 +270,9 @@ markup_re = {'style-strong' : Re(r'(\*{2})(.*)\1'),
     'style-pre' : Re(r'(\'{2})(.*)\1'),
     'style-strike' : Re(r'(~{2})(.*)\1')}
 
+#DGT Tag 
 tag_re = Re(r'^(@\w+)$', re.U)
+note_re = Re(r'^(%\w+)$', re.U)
 
 # These sets adjust to the current locale - so not same as "[a-z]" ..
 # Must be kidding - no classes for this in the regex engine !?
@@ -3835,6 +3837,17 @@ class TextView(gtk.TextView):
             buffer.apply_tag(tag, start, end)
             return True
 
+        def apply_note(match):
+            start = end.copy()
+            if not start.backward_chars(len(match)):
+                return False
+            if buffer.range_has_tags(_is_not_indent_tag, start, end):
+                return False
+            tag = buffer._create_tag_tag(match)
+            buffer.apply_tag(tag, start, end)
+            return True
+
+
         def apply_link(match):
             #~ print "LINK >>%s<<" % word
             start = end.copy()
@@ -3856,8 +3869,15 @@ class TextView(gtk.TextView):
             buffer.set_bullet(line, bullet)
         elif tag_re.match(word):
             apply_tag(tag_re[0])
+
+        #DGT 
+#         elif note_re.match(word):
+#             apply_note(note_re[0])
+
+
         elif url_re.match(word):
             apply_link(url_re[0])
+            
         elif page_re.match(word):
             # Do not link "10:20h", "10:20PM" etc. so check two letters before first ":"
             w = word.strip(':').split(':')
@@ -3865,6 +3885,7 @@ class TextView(gtk.TextView):
                 apply_link(page_re[0])
             else:
                 handled = False
+                
         elif interwiki_re.match(word):
             apply_link(interwiki_re[0])
         elif self.preferences['autolink_files'] and file_re.match(word):
@@ -3904,6 +3925,9 @@ class TextView(gtk.TextView):
         start = buffer.get_iter_at_line(end.get_line())
         line = start.get_text(end)
         #~ print 'LINE >>%s<<' % line
+        
+        # DGT 
+        first_word =  line.split()[0]
 
         if heading_re.match(line):
             level = len(heading_re[1])-1
@@ -3913,6 +3937,16 @@ class TextView(gtk.TextView):
             buffer.insert_with_tags_by_name(
                 buffer.get_iter_at_mark(mark), heading, 'style-h'+str(level))
             buffer.delete_mark(mark)
+
+        #DGT
+        elif note_re.match(first_word):
+            level = 5
+            mark = buffer.create_mark(None, end)
+            buffer.delete(start, end)
+            buffer.insert_with_tags_by_name(
+                buffer.get_iter_at_mark(mark), line, 'style-h'+str(level))
+            buffer.delete_mark(mark)
+            
         elif not buffer.get_bullet_at_iter(start) is None:
             # we are part of bullet list
             # FIXME should logic be handled by TextBufferList ?
