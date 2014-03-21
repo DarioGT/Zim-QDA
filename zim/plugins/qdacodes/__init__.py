@@ -30,6 +30,9 @@ from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
 from qdaCodesDialog import QdaCodesDialog
 
+
+NOTE_MARK = '%'
+
 class QdaCodesPlugin(PluginClass):
 
     from qdaSettings import __gsignals__, plugin_info, plugin_preferences, _rebuild_on_preferences
@@ -88,7 +91,7 @@ class QdaCodesPlugin(PluginClass):
 
         sLabels = self.preferences['labels'].split(',')
         if sLabels  :
-            self.codes_labels = ['%{}'.format( s.strip().upper() ) for s in sLabels ]
+            self.codes_labels = [ ( NOTE_MARK + '{}').format(s.strip().upper()) for s in sLabels ]
         else:
             self.codes_labels = []
 
@@ -205,13 +208,14 @@ class QdaCodesPlugin(PluginClass):
             c.execute(
                 'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
                 'values (?, ?, ?, ?, ?, ?)',
-                (page.id, parentid, cNumber ) + tuple(qCode)
+                (page.id, parentid, cNumber) + tuple(qCode)
             )
 
     def _extract_codes(self, parsetree):
         '''Extract all codes from a parsetree.
         '''
 
+        # DGT
         # Stack tuple indexes
         codes = []
         if not self.codes_labels:
@@ -229,10 +233,12 @@ class QdaCodesPlugin(PluginClass):
         for index, item in enumerate(lines):
             if type(item) is tuple:
                 continue
-            
-            tag = item.split()[0].upper()
-            if tag in self.codes_labels:
-                codes.append(  ( item, self._getCitation(lines, index), tag ))
+
+            tag = item.split()
+            if tag:
+                tag = tag[0].upper()
+                if tag in self.codes_labels:
+                    codes.append((item, self._getCitation(lines, index + 1), tag[1:]))
 
 #         print codes
 #         print '----------------'
@@ -241,10 +247,9 @@ class QdaCodesPlugin(PluginClass):
 
     def _getCitation(self, lines, index):
         # Obtiene el texto de la citacion
-        for item in lines[index:]:
+        for item in lines[index: index+5]:
             if type(item) is tuple:
-                mark, text = item
-                return text
+                return item[0]
         return ''
 
     def _flatten_para(self, nodeAux):
@@ -254,22 +259,26 @@ class QdaCodesPlugin(PluginClass):
         items = []
 
         if nodeAux.tag in ('p', 'div'):
-            # Agrega el texto y verifica los hijos, si no hay nada viene vacio 
-            items += (nodeAux.text or '').splitlines()
+            # Agrega el texto y verifica los hijos, si no hay nada viene vacio
+            itAux = []
+            for lnAux in (nodeAux.text or '').splitlines(): 
+                if lnAux and lnAux[0] == NOTE_MARK: 
+                    itAux.append(lnAux )
+            items += itAux
 
         elif nodeAux.tag == 'h':
             # Permite marcarlos como titulo 5
             level = nodeAux.get('level')
-            if str( level )  == '5':
+            if str(level) == '5':
                 items += self._flatten(nodeAux).splitlines()
 
         elif nodeAux.tag in ('mark', 'strong', 'emphasis'):
-            items.append(('/', self._flatten(nodeAux)))
+            items.append( (self._flatten(nodeAux), ) )
 
+        # REcursivo segun el tipo de tag 
         if nodeAux.tag in ('ul', 'ol', 'li', 'p', 'div'):
             for childList in nodeAux.getchildren():
                 items += self._flatten_para(childList)
-
 
         return items
 
@@ -302,7 +311,7 @@ class QdaCodesPlugin(PluginClass):
 
         return qCodesfound
 
-    def list_codes(self, parent=None, orderBy = 'source, citnumber', whereStmt = '1=1'):
+    def list_codes(self, parent=None, orderBy='source, citnumber', whereStmt='1=1'):
         '''List codes
         @param parent: the parent qCode (as returned by this method) or C{None} to list
         all top level codes
@@ -313,8 +322,8 @@ class QdaCodesPlugin(PluginClass):
 
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            sqlStmt = 'select * from qdacodes where parent=? and {1} order by {0}'.format( orderBy, whereStmt )
-            cursor.execute( sqlStmt , (parentid,))
+            sqlStmt = 'select * from qdacodes where parent=? and {1} order by {0}'.format(orderBy, whereStmt)
+            cursor.execute(sqlStmt , (parentid,))
             for row in cursor:
                 yield row
 

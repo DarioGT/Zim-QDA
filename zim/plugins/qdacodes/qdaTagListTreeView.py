@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2014 Dario Gomez  <dariogomezt at gmail dot com>  
-# Licence : GPL or same as Zim 
+# Copyright 2014 Dario Gomez  <dariogomezt at gmail dot com>
+# Licence : GPL or same as Zim
 
 from __future__ import with_statement
 
@@ -13,6 +13,7 @@ from zim.gui.widgets import SingleClickTreeView
 
 from qdaSettings import  _NO_TAGS
 
+NOTE_MARK = '%'
 
 class TagListTreeView(SingleClickTreeView):
     '''TreeView with a single column 'Tags' which shows all tags available
@@ -26,7 +27,7 @@ class TagListTreeView(SingleClickTreeView):
     _type_untagged = 3
 
     def __init__(self, qda_codes):
-        model = gtk.ListStore(str, int, int, int) # tag name, number of codes, type, weight
+        model = gtk.ListStore(str, int, int, int)  # tag name, number of codes, type, weight
         SingleClickTreeView.__init__(self, model)
         self.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         self.qda_codes = qda_codes
@@ -37,11 +38,11 @@ class TagListTreeView(SingleClickTreeView):
         cr1 = gtk.CellRendererText()
         cr1.set_property('ellipsize', pango.ELLIPSIZE_END)
         column.pack_start(cr1, True)
-        column.set_attributes(cr1, text=0, weight=3) # tag name, weight
+        column.set_attributes(cr1, text=0, weight=3)  # tag name, weight
 
         cr2 = self.get_cell_renderer_number_of_items()
         column.pack_start(cr2, False)
-        column.set_attributes(cr2, text=1) # number of codes
+        column.set_attributes(cr2, text=1)  # number of codes
 
         self.set_row_separator_func(lambda m, i: m[i][2] == self._type_separator)
 
@@ -65,7 +66,7 @@ class TagListTreeView(SingleClickTreeView):
         labels = []
         for row in self._get_selected():
             if row[2] == self._type_label:
-                labels.append(row[0])
+                labels.append(NOTE_MARK + row[0])
         return labels or None
 
     def _get_selected(self):
@@ -81,7 +82,7 @@ class TagListTreeView(SingleClickTreeView):
 
     def refresh(self, qda_codes):
         self._block_selection_change = True
-        selected = [(row[0], row[2]) for row in self._get_selected()] # remember name and type
+        selected = [(row[0], row[2]) for row in self._get_selected()]  # remember name and type
 
         # Rebuild model
         model = self.get_model()
@@ -89,13 +90,11 @@ class TagListTreeView(SingleClickTreeView):
         model.clear()
 
         n_all = self.qda_codes.get_n_codes()
-        model.append((_('All Tasks'), n_all, self._type_label, pango.WEIGHT_BOLD)) # T: "tag" for showing all codes
+        model.append((_('All Tasks'), n_all, self._type_label, pango.WEIGHT_BOLD))  # T: "tag" for showing all codes
 
         labels = self.qda_codes.get_labels()
-        plugin = self.qda_codes.plugin
-        for label in plugin.codes_labels: # explicitly keep sorting from preferences
-            if label in labels :
-                model.append((label, labels[label], self._type_label, pango.WEIGHT_BOLD))
+        for label in sorted (labels.keys()) :
+            model.append((label, labels[label], self._type_label, pango.WEIGHT_BOLD))
 
         tags = self.qda_codes.get_tags()
         if _NO_TAGS in tags:
@@ -103,7 +102,7 @@ class TagListTreeView(SingleClickTreeView):
             model.append((_('Untagged'), n_untagged, self._type_untagged, pango.WEIGHT_NORMAL))
             # T: label in qdacodes plugins for codes without a tag
 
-        model.append(('', 0, self._type_separator, 0)) # separator
+        model.append(('', 0, self._type_separator, 0))  # separator
 
         for tag in natural_sorted(tags):
             model.append((tag, tags[tag], self._type_tag, pango.WEIGHT_NORMAL))

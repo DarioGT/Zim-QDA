@@ -107,6 +107,9 @@ KEYVAL_POUND = gtk.gdk.unicode_to_keyval(ord('#'))
 # numlock or fn keys are active, resulting in keybindings failing
 KEYSTATES = gtk.gdk.CONTROL_MASK | gtk.gdk.SHIFT_MASK | gtk.gdk.MOD1_MASK
 
+# DGT 
+NOTE_MARK = '%'
+
 ui_actions = (
     # name, stock id, label, accelerator, tooltip, readonly
     ('undo', 'gtk-undo', _('_Undo'), '<ctrl>Z', '', False), # T: Menu item
@@ -270,9 +273,7 @@ markup_re = {'style-strong' : Re(r'(\*{2})(.*)\1'),
     'style-pre' : Re(r'(\'{2})(.*)\1'),
     'style-strike' : Re(r'(~{2})(.*)\1')}
 
-#DGT Tag 
 tag_re = Re(r'^(@\w+)$', re.U)
-note_re = Re(r'^(%\w+)$', re.U)
 
 # These sets adjust to the current locale - so not same as "[a-z]" ..
 # Must be kidding - no classes for this in the regex engine !?
@@ -3870,11 +3871,6 @@ class TextView(gtk.TextView):
         elif tag_re.match(word):
             apply_tag(tag_re[0])
 
-        #DGT 
-#         elif note_re.match(word):
-#             apply_note(note_re[0])
-
-
         elif url_re.match(word):
             apply_link(url_re[0])
             
@@ -3926,8 +3922,6 @@ class TextView(gtk.TextView):
         line = start.get_text(end)
         #~ print 'LINE >>%s<<' % line
         
-        # DGT 
-        first_word =  line.split()[0]
 
         if heading_re.match(line):
             level = len(heading_re[1])-1
@@ -3939,7 +3933,7 @@ class TextView(gtk.TextView):
             buffer.delete_mark(mark)
 
         #DGT
-        elif note_re.match(first_word):
+        elif len( line ) > 0 and line[0] == NOTE_MARK:
             level = 5
             mark = buffer.create_mark(None, end)
             buffer.delete(start, end)

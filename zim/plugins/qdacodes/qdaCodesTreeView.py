@@ -79,8 +79,8 @@ class QdaCodesTreeView(BrowserTreeView):
 
         column.set_resizable(True)
         column.set_sort_column_id(self.MCOL_CITA)
-        column.set_expand(True)
-        column.set_min_width(200)  # don't let this column get too small
+        column.set_min_width(200) 
+        column.set_max_width(300) 
 
         self.append_column(column)
 
@@ -136,7 +136,6 @@ class QdaCodesTreeView(BrowserTreeView):
             if row['source'] not in path_cache:
                 path = self.plugin.get_path(row)
                 if path is None:
-                    # Be robust for glitches - filter these out
                     continue
                 else:
                     path_cache[row['source']] = path
@@ -144,29 +143,20 @@ class QdaCodesTreeView(BrowserTreeView):
             path = path_cache[row['source']]
 
             # Update labels
-            for label in self.plugin.codes_label_re.findall(row['description']):
-                self._labels[label] = self._labels.get(label, 0) + 1
+            label = row['tag']
+            self._labels[label] = self._labels.get(label, 0) + 1
 
             # Update tag count
             tags = path.parts
             for tag in tags:
                 self._tags[tag] = self._tags.get(tag, 0) + 1
 
-
-            # Format description
-            code = _date_re.sub('', row['description'], count=1)
-            code = encode_markup_text(code)
-            code = re.sub('\s*!+\s*', ' ', code)  # get rid of exclamation marks
-
-            code = _tag_re.sub(r'<span color="#ce5c00">@\1</span>', code)  # highlight tags - same color as used in pageview
-            code = self.plugin.codes_label_re.sub(r'<b>\1</b>', code)  # highlight labels
-
-            # Nro de citation en la pagina
+            #  Code ( description ) 
             nroCita = "{0:03d}".format(row['citnumber'])
 
             # Insert all columns
             # Visible, MCOL_CODE, MCOL_CITA, MCOL_PAGE, MCOL_NCIT, MCOL_RGID, MCOL_TAGS
-            modelrow = [ True, code, row['citation'] , path.name, nroCita, row['id'], tags ]
+            modelrow = [ True, row['description'] , row['citation'] , path.name, nroCita, row['id'], tags ]
 
             modelrow[0] = self._filter_item(modelrow)
             myiter = self.real_model.append(iter, modelrow)
@@ -317,12 +307,12 @@ class QdaCodesTreeView(BrowserTreeView):
         myTag = ''
         myCode = ''
 
-        sWhere = None
+        sWhere = '1=1'
         exportOnly = self.plugin.preferences['export_only']
         if exportOnly:
             sWhere = ''
             for s in exportOnly.split(','):
-                sWhere += '\'%{}\','.format(s.strip().upper() )
+                sWhere += '\'{}\','.format(s.strip().upper() )
             sWhere = 'tag in ({})'.format(sWhere[:-1])
 
         sOrder = 'tag, parent, source, description, citnumber'
@@ -334,7 +324,7 @@ class QdaCodesTreeView(BrowserTreeView):
                 continue
 
             # Format description
-            tag = row['tag'].decode('utf-8')[1:]
+            tag = row['tag'].decode('utf-8')
             code = row['description'].decode('utf-8')[ len(tag) + 1: ]
             source = path.name
             nroCita = "{0:03d}".format(row['citnumber'])
