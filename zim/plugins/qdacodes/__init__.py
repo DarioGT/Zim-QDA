@@ -32,6 +32,7 @@ from qdaCodesDialog import QdaCodesDialog
 
 
 NOTE_MARK = '%'
+NOTE_AUTOTITLE = 'TITLE'
 
 class QdaCodesPlugin(PluginClass):
 
@@ -82,7 +83,9 @@ class QdaCodesPlugin(PluginClass):
             return
 
         new_preferences = self._serialize_rebuild_on_preferences()
-        if new_preferences != self._current_preferences:
+
+        # Asegura borrar la db
+        if new_preferences != self._current_preferences or self.preferences['batch_clasification'] :
             self._drop_table()
         self._set_preferences()
 
@@ -91,7 +94,7 @@ class QdaCodesPlugin(PluginClass):
 
         sLabels = self.preferences['labels'].split(',')
         if sLabels  :
-            self.codes_labels = [ ( NOTE_MARK + '{}').format(s.strip().upper()) for s in sLabels ]
+            self.codes_labels = [ (NOTE_MARK + '{}').format(s.strip().upper()) for s in sLabels ]
         else:
             self.codes_labels = []
 
@@ -109,12 +112,14 @@ class QdaCodesPlugin(PluginClass):
 
         if self.preferences['excluded_subtrees']:
             excluded = [i.strip().strip(':') for i in self.preferences['excluded_subtrees'].split(',')]
-            excluded.sort(key=lambda s: len(s), reverse=True)  # longest first
-            excluded_re = '^(' + '|'.join(map(re.escape, excluded)) + ')(:.+)?$'
-            # ~ print '>>>>>', "excluded_re", repr(excluded_re)
-            self.excluded_re = re.compile(excluded_re)
-        else:
-            self.excluded_re = None
+        else : 
+            excluded = []
+
+        excluded.append( self.preferences['namespace'] )
+        excluded.sort(key=lambda s: len(s), reverse=True)  # longest first
+        excluded_re = '^(' + '|'.join(map(re.escape, excluded)) + ')(:.+)?$'
+        # ~ print '>>>>>', "excluded_re", repr(excluded_re)
+        self.excluded_re = re.compile(excluded_re)
 
 
     def _serialize_rebuild_on_preferences(self):
@@ -167,7 +172,11 @@ class QdaCodesPlugin(PluginClass):
 
 
     def index_page(self, index, path, page):
+
+        # DGT Aqui comienza
         if not self.db_initialized: return
+        if self._excluded( path): return 
+
         # ~ print '>>>>>', path, page, page.hascontent
 
         qCodesfound = self.remove_page(index, path, _emit=False)
@@ -221,36 +230,86 @@ class QdaCodesPlugin(PluginClass):
         if not self.codes_labels:
             return codes
 
-#         print parsetree.tostring()
-#         print '----------------'
+        # print parsetree.tostring()
+        # print '----------------'
 
         lines = []
         for node in parsetree.findall('*'):
             # Lines paragraph
             lines.extend(self._flatten_para(node))
 
-        # Check line by line
-        for index, item in enumerate(lines):
-            if type(item) is tuple:
-                continue
 
-            tag = item.split()
-            if tag:
-                tag = tag[0].upper()
-                if tag in self.codes_labels:
-                    codes.append((item, self._getCitation(lines, index + 1), tag[1:]))
+        # Las genera a nivel de clase
+        self.lines = lines
+
+        # Check line by line only text lines ( tuples = citations )
+        for index, item in enumerate(self.lines):
+            if not type(item) is tuple:
+                tag = self._getTag(item)
+                if tag[0] == NOTE_MARK:
+                    codes += self._addNewCode(item, index , tag)
 
 #         print codes
 #         print '----------------'
 
         return codes
 
-    def _getCitation(self, lines, index):
+    def _getTag(self, item):
+        """
+        El tag es el primer elemento de la linea ( separado por un espacio )
+        se comparara siempre en mayusculas
+        """
+
+        return (item.split() or [''])[0].strip().upper()
+
+
+    def _addNewCode(self, items, index , tag0):
+        """
+        Una misma linea de codigo puede contener mas de un codigo separado por ;
+        La citacion es la misma,
+        En caso de ser un titulo, no hay citacion solo el tag
+        """
+
+        codes = []
+        citation = None
+
+        # DGT: Asume que vienen diferentes codigos de la linea (;) y los separa
+        for item in items.split(';'):
+            tag = self._getTag (item)
+
+            # Aisgna el tag por defecto en caso de ser una continuacion de lineas
+            if tag[0] != NOTE_MARK:
+                tag = tag0
+                item = '{0} {1}'.format(tag, item.strip())
+
+            # Verifica q sea un tag a reportar
+            if tag in self.codes_labels:
+                # Asigna la citacion la primera vez q encuentre un codigo valido
+                citation = citation or self._getCitation(index + 1)
+                codes.append((item, citation , tag[1:]))
+
+            # El autotitulo no tiene citation
+            elif tag == NOTE_AUTOTITLE :
+                codes.append((item, '' , tag[1:]))
+
+        return codes
+
+
+    def _getCitation(self, index):
         # Obtiene el texto de la citacion
-        for item in lines[index: index+5]:
+        citation = ''
+
+        for item in self.lines[index: ]:
             if type(item) is tuple:
-                return item[0]
-        return ''
+                citation += item[0] + '\n'
+
+            # Al encontrar una marca retorna
+            elif item[0] == NOTE_MARK:
+                return citation
+
+        # Elimina el ultimo \n
+        return citation[0:-2]
+
 
     def _flatten_para(self, nodeAux):
         # Returns a list which is a mix of normal lines of text and
@@ -261,9 +320,9 @@ class QdaCodesPlugin(PluginClass):
         if nodeAux.tag in ('p', 'div'):
             # Agrega el texto y verifica los hijos, si no hay nada viene vacio
             itAux = []
-            for lnAux in (nodeAux.text or '').splitlines(): 
-                if lnAux and lnAux[0] == NOTE_MARK: 
-                    itAux.append(lnAux )
+            for lnAux in (nodeAux.text or '').splitlines():
+                if lnAux and lnAux[0] == NOTE_MARK:
+                    itAux.append(lnAux)
             items += itAux
 
         elif nodeAux.tag == 'h':
@@ -272,13 +331,31 @@ class QdaCodesPlugin(PluginClass):
             if str(level) == '5':
                 items += self._flatten(nodeAux).splitlines()
 
-        elif nodeAux.tag in ('mark', 'strong', 'emphasis'):
-            items.append( (self._flatten(nodeAux), ) )
+            else:
+                # Add a AutoTitle Mark
+                try: 
+                    ilevel = ( int( level ) - 1 ) * 2 
+                except: ilevel = 0  
+                indent_title = '.' * ilevel
+                items.append('{0}{1} {2} {3}'.format (NOTE_MARK, NOTE_AUTOTITLE, indent_title, self._flatten(nodeAux)))
 
-        # REcursivo segun el tipo de tag 
+        elif nodeAux.tag in ('mark', 'strong', 'emphasis'):
+            # Add a tuple with item tag
+            items.append((self._flatten(nodeAux), nodeAux.tag))
+
+        # REcursivo segun el tipo de tag
         if nodeAux.tag in ('ul', 'ol', 'li', 'p', 'div'):
+            prefix = ''
+            if nodeAux.tag in ('div',):
+                prefix = '\t'
+            elif nodeAux.tag in ('ol', 'li'):
+                prefix = '* '
+
             for childList in nodeAux.getchildren():
-                items += self._flatten_para(childList)
+                # items += self._flatten_para(childList)
+                subText = self._flatten_para(childList)
+                for subLine in subText:
+                    items.append( ( prefix + subLine[0], subLine[1]  ) )
 
         return items
 
@@ -292,7 +369,7 @@ class QdaCodesPlugin(PluginClass):
             else:
                 text += self._flatten(child)  # recurs
                 text += child.tail or ''
-        return text
+        return text.strip()
 
 
 
@@ -302,8 +379,7 @@ class QdaCodesPlugin(PluginClass):
         qCodesfound = False
         with index.db_commit:
             cursor = index.db.cursor()
-            cursor.execute(
-                'delete from qdacodes where source=?', (path.id,))
+            cursor.execute('delete from qdacodes where source=?', (path.id,))
             qCodesfound = cursor.rowcount > 0
 
         if qCodesfound and _emit:
@@ -341,15 +417,14 @@ class QdaCodesPlugin(PluginClass):
         return self.index.lookup_id(qCode['source'])
 
     def show_qda_codes(self):
-        if not self.db_initialized:
+        if not self.db_initialized or self.preferences['batch_clasification'] :
             MessageDialog(self.ui, (
                 _('Need to index the notebook'),
                 # T: Short message text on first time use of qda codes plugin
-                _('This is the first time the qda codes is opened.\n'
-                  'Therefore the index needs to be rebuild.\n'
+                _('The index needs to be rebuild ( it may be the first time )\n'
                   'Depending on the size of the notebook this can\n'
-                  'take up to several minutes. Next time you use the\n'
-                  'qda codes this will not be needed again.')
+                  'take up to several minutes. If you want onLine code '
+                  'clasification uncheck plugin paramenter //batch_clasification//.')
                 # T: Long message text on first time use of qda codes plugin
             )).run()
             logger.info('qCodelist not initialized, need to rebuild index')
@@ -359,8 +434,14 @@ class QdaCodesPlugin(PluginClass):
                 self.db_initialized = False
                 return
 
+
         dialog = QdaCodesDialog.unique(self, plugin=self)
         dialog.present()
+
+        # Retoma la operacion batch
+#         if self.preferences['batch_clasification']:
+#             self.db_initialized = False
+
 
 # Need to register classes defining gobject signals
 gobject.type_register(QdaCodesPlugin)

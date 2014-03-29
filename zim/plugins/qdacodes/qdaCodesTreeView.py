@@ -342,10 +342,10 @@ class QdaCodesTreeView(BrowserTreeView):
 
             # Break by Page
             zPages[ myTag ] += '[[{0}]]  **{1}**\n'.format(source, nroCita)
-            zPages[ myTag ] += '\t//"{}"//\n\n'.format(row['citation'].decode('utf-8'))
+            zPages[ myTag ] += '{}\n\n'.format(row['citation'].decode('utf-8'))
 
 
-        masterPageIx = '\n\nCreated: {}\n\n'.format(datetime.now().isoformat())
+        masterPageIx = '====== Summary ======\nCreated: {}\n\n'.format(datetime.now().isoformat())
 
         path = self.plugin.preferences['namespace']
         for tag in zPages:
@@ -353,6 +353,8 @@ class QdaCodesTreeView(BrowserTreeView):
             newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format(path, tag)  , open_page=False)
 
             masterPageIx += '[[{}]]\n'.format(newpage.name)
+
+        masterPageIx += '\n'
 
         self.plugin.ui.append_text_to_page(path , masterPageIx)
         newpage = Path(path)
