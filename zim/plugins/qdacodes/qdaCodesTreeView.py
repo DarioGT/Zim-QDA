@@ -494,10 +494,10 @@ class QdaCodesTreeView(BrowserTreeView):
             # Aplana los links para no agregar codigos duplicados
             myLinks = []
             for link in zPage['links']:
-                link = ' -> '.join(link)
-                myLinks.append(link)
+                for i in range(0, len (link) - 1):
+                    myLinks.append('{0} -> {1}'.format(link[i], link[i + 1]))
 
-            myLinks = list(set( myLinks ))
+            myLinks = list(set(myLinks))
             myLinks.sort()
             for link in myLinks:
                 masterPageIx += '\t{}\n'.format(link)

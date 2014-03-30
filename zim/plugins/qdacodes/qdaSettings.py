@@ -20,7 +20,7 @@ NOTE_AUTOTITLE = 'QDATITLE'
 
 ui_actions = (
     # name, stock id, label, accelerator, tooltip, read only
-    ('show_qda_codes', 'zim-qda-codes', _('Qda Codes'), '', _('Qda Codes'), True),
+    ('show_qda_codes', 'zim-qda', _('Qda Codes'), '', _('Qda Codes'), True),
 )
 
 
