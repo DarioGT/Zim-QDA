@@ -48,8 +48,8 @@ class QdaCodesPlugin(PluginClass):
         self.db_initialized = False
         self._current_preferences = None
 
-        # Permite el indexamiento de la db en batch  
-        self.allow_index = False   
+        # Permite el indexamiento de la db en batch
+        self.allow_index = False
 
 
     def initialize_ui(self, ui):
@@ -106,10 +106,10 @@ class QdaCodesPlugin(PluginClass):
         self.codes_label_re = re.compile(regex)
 
 
-        # Si el indexamiento es en batch, no permite indexamiento onlin 
-        self.allow_index =  not self.preferences['batch_clasification']
+        # Si el indexamiento es en batch, no permite indexamiento onlin
+        self.allow_index = not self.preferences['batch_clasification']
 
-        # Parametros de exclusion e inclusion 
+        # Parametros de exclusion e inclusion
         if self.preferences['included_subtrees']:
             included = [i.strip().strip(':') for i in self.preferences['included_subtrees'].split(',')]
             included.sort(key=lambda s: len(s), reverse=True)  # longest first
@@ -121,10 +121,10 @@ class QdaCodesPlugin(PluginClass):
 
         if self.preferences['excluded_subtrees']:
             excluded = [i.strip().strip(':') for i in self.preferences['excluded_subtrees'].split(',')]
-        else : 
+        else :
             excluded = []
 
-        excluded.append( self.preferences['namespace'] )
+        excluded.append(self.preferences['namespace'])
         excluded.sort(key=lambda s: len(s), reverse=True)  # longest first
         excluded_re = '^(' + '|'.join(map(re.escape, excluded)) + ')(:.+)?$'
 
@@ -186,9 +186,9 @@ class QdaCodesPlugin(PluginClass):
 
         # DGT Aqui comienza
         if not self.db_initialized: return
-        if not self.allow_index: return 
+        if not self.allow_index: return
 
-        if self._excluded( path): return 
+        if self._excluded(path): return
 
         # ~ print '>>>>>', path, page, page.hascontent
 
@@ -226,7 +226,7 @@ class QdaCodesPlugin(PluginClass):
         c = self.index.db.cursor()
         cNumber = 0
         for qCode  in children:
-            if qCode[2] != NOTE_AUTOTITLE: 
+            if qCode[2] != NOTE_AUTOTITLE:
                 cNumber += 1
             c.execute(
                 'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
@@ -289,7 +289,7 @@ class QdaCodesPlugin(PluginClass):
 
         # DGT: Asume que vienen diferentes codigos de la linea (;) y los separa
         for item in items.split(';'):
-            item = item.strip(); 
+            item = item.strip();
             tag = self._getTag(item)
 
             # Aisgna el tag por defecto en caso de ser una continuacion de lineas
@@ -368,7 +368,7 @@ class QdaCodesPlugin(PluginClass):
                 # items += self._flatten_para(childList)
                 subText = self._flatten_para(childList)
                 for subLine in subText:
-                    items.append( ( prefix + subLine[0], subLine[1]  ) )
+                    items.append((prefix + subLine[0], subLine[1]))
 
         return items
 
@@ -431,10 +431,10 @@ class QdaCodesPlugin(PluginClass):
 
     def show_qda_codes(self):
 
-        self.allow_index = True 
+        self.allow_index = True
 
         if not self.db_initialized or self.preferences['batch_clasification'] :
-            self.db_initialized = False 
+            self.db_initialized = False
             MessageDialog(self.ui, (
                 _('Need to index the notebook'),
                 # T: Short message text on first time use of qda codes plugin
@@ -458,7 +458,7 @@ class QdaCodesPlugin(PluginClass):
 
         # Retoma la operacion batch
         if self.preferences['batch_clasification']:
-            self.allow_index = False 
+            self.allow_index = False
 
 # Need to register classes defining gobject signals
 gobject.type_register(QdaCodesPlugin)

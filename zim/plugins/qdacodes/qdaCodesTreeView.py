@@ -14,7 +14,7 @@ from zim.notebook import Path
 from zim.gui.widgets import ui_environment, BrowserTreeView, encode_markup_text, decode_markup_text
 from zim.gui.clipboard import Clipboard
 
-from qdaSettings import logger, _tag_re, _NO_TAGS, NOTE_MARK, NOTE_AUTOTITLE
+from qdaSettings import logger, _tag_re, _NO_TAGS, NOTE_MARK, NOTE_AUTOTITLE, sluglify
 
 import zim.datetimetz as datetime
 
@@ -79,8 +79,8 @@ class QdaCodesTreeView(BrowserTreeView):
 
         column.set_resizable(True)
         column.set_sort_column_id(self.MCOL_CITA)
-        column.set_min_width(200) 
-        column.set_max_width(300) 
+        column.set_min_width(200)
+        column.set_max_width(300)
 
         self.append_column(column)
 
@@ -131,7 +131,7 @@ class QdaCodesTreeView(BrowserTreeView):
 
     def _append_codes(self, code, iter, path_cache):
 
-        sWhere  = self._getWStmt( self.plugin.preferences['labels'] )
+        sWhere = self._getWStmt(self.plugin.preferences['labels'])
         sOrder = 'source, citnumber'
 
         for row in self.plugin.list_codes(parent=code, orderBy=sOrder, whereStmt=sWhere):
@@ -154,13 +154,13 @@ class QdaCodesTreeView(BrowserTreeView):
             for tag in tags:
                 self._tags[tag] = self._tags.get(tag, 0) + 1
 
-            #  Code ( description ) 
+            #  Code ( description )
             nroCita = "{0:03d}".format(row['citnumber'])
-            description = '{0}{1} {2}'.format( NOTE_MARK, label,  row['description']) 
+            description = '{0}{1} {2}'.format(NOTE_MARK, label, row['description'])
 
             # Insert all columns
             # Visible, MCOL_CODE, MCOL_CITA, MCOL_PAGE, MCOL_NCIT, MCOL_RGID, MCOL_TAGS
-            modelrow = [ True, description , row['citation'].replace( '\n', ';')  , path.name, nroCita, row['id'], tags ]
+            modelrow = [ True, description , row['citation'].replace('\n', ';')  , path.name, nroCita, row['id'], tags ]
 
             modelrow[0] = self._filter_item(modelrow)
             myiter = self.real_model.append(iter, modelrow)
@@ -305,10 +305,29 @@ class QdaCodesTreeView(BrowserTreeView):
         return text
 
 
-    def _getWStmt( self, baseWhere  ):
-        sWhere = '' 
+    def get_visible_data(self):
+        rows = []
+
+        def collect(model, path, iter):
+            indent = len(path) - 1  # path is tuple with indexes
+
+            row = model[iter]
+#             prio = row[self.MCOL_NCIT]
+            code = row[self.MCOL_CODE].decode('utf-8')
+            cita = row[self.MCOL_CITA].decode('utf-8').replace('\n', ';')
+            page = row[self.MCOL_PAGE].decode('utf-8')
+
+            rows.append((indent, code, cita, page))
+
+        model = self.get_model()
+        model.foreach(collect)
+
+        return rows
+
+    def _getWStmt(self, baseWhere):
+        sWhere = ''
         for s in baseWhere.split(','):
-            sWhere += '\'{}\','.format(s.strip().upper() )
+            sWhere += '\'{}\','.format(s.strip().upper())
 
         sWhere = 'tag in ({})'.format(sWhere[:-1])
         return sWhere
@@ -320,7 +339,7 @@ class QdaCodesTreeView(BrowserTreeView):
         myTag = ''
         myCode = ''
 
-        sWhere  = self._getWStmt( self.plugin.preferences['export_only'] or self.plugin.preferences['labels'] )
+        sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
         sOrder = 'tag, parent, source, description, citnumber'
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
@@ -363,59 +382,127 @@ class QdaCodesTreeView(BrowserTreeView):
 
         self.plugin.ui.append_text_to_page(masterPath , masterPageIx)
 
-        # TOC 
-        if self.plugin.preferences['table_of_contents'] : 
-
-            sWhere = 'tag = \'{}\''.format( NOTE_AUTOTITLE  )
-            sOrder = 'parent, source, citnumber'
-            mySource = ''
-
-            masterPageIx = '====== Table of contents ======\n'
-
-            for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
-
-                path = self.plugin.get_path(row)
-                if path is None: continue
-
-                code = row['description'].decode('utf-8')
-
-                # Break by source
-                source = path.name
-                if source != mySource:
-                    mySource = source
-                    masterPageIx += '\n===== {} =====\n'.format( code[1:] )
-                    masterPageIx += '[[{}]]\n'.format( source )
-
-                else : 
-                    try:
-                        indent =  '\t' *  ( int( code[0] ) -1 )    
-                    except: indent = ''
-                    masterPageIx += '{0}{1}\n'.format( indent, code[1:] )            
-
-            self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
-
+        # TOC
+        if self.plugin.preferences['table_of_contents'] :
+            self.do_table_of_contents()
+            self.do_code_detail()
 
         # Open de index page ( QDA Namespace root )
         newpage = Path(masterPath)
         self.ui.open_page(newpage)
 
+    def do_table_of_contents(self):
 
-    def get_visible_data(self):
-        rows = []
+        masterPath = self.plugin.preferences['namespace']
+        sWhere = 'tag = \'{}\''.format(NOTE_AUTOTITLE)
+        sOrder = 'parent, source, citnumber'
+        mySource = ''
 
-        def collect(model, path, iter):
-            indent = len(path) - 1  # path is tuple with indexes
+        masterPageIx = '\n====== Table of contents ======\n'
 
-            row = model[iter]
-#             prio = row[self.MCOL_NCIT]
-            code = row[self.MCOL_CODE].decode('utf-8')
-            cita = row[self.MCOL_CITA].decode('utf-8').replace( '\n', ';')
-            page = row[self.MCOL_PAGE].decode('utf-8')
+        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
-            rows.append((indent, code, cita, page))
+            path = self.plugin.get_path(row)
+            if path is None: continue
 
-        model = self.get_model()
-        model.foreach(collect)
+            code = row['description'].decode('utf-8')
 
-        return rows
+            # Break by source
+            source = path.name
+            if source != mySource:
+                mySource = source
+                masterPageIx += '\n[[{}]]\n'.format(source)
+                masterPageIx += '===== {} =====\n'.format(code[1:])
+
+            else :
+                try:
+                    indent = '\t' * (int(code[0]) - 1)
+                except: indent = ''
+                masterPageIx += '{0}{1}\n'.format(indent, code[1:])
+
+        self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
+
+
+    def do_code_detail(self):
+        """
+        Por cada codigo genera las fuentes con formato record y label
+        Genera una lista de codigos con su label
+        genera la conexion de cada autor con los codigos
+        si existen jerarquias ( listas separadas por , ) las presenta encadendas
+        cuando hay conceptos jerarquizados no deberia vincularlos a la fuente
+        """
+
+        masterPath = self.plugin.preferences['namespace']
+
+        sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
+        sOrder = 'tag, parent, source, description'
+
+        myTag = ''
+        mySource = ''
+        myCode = ''
+        zPages = {}
+
+        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
+            path = self.plugin.get_path(row)
+            if path is None: continue
+
+            # Format description
+            tag = row['tag'].decode('utf-8').strip()
+            code = row['description'].decode('utf-8').strip()
+            source = sluglify (path.name.strip())
+
+            # Break by Tag
+            if tag != myTag:
+                myTag = tag
+                mySource = ''
+                myCode = ''
+
+                zPages[ myTag ] = { 'sources' : [], 'codes' : [], 'links' : [] }
+
+            # Break by source
+            if source != mySource:
+                mySource = source
+                zPages[ myTag ][ 'sources'].append(mySource)
+
+            # Break by Code ( links [[]]
+            if code != myCode:
+                myCode = code
+                myLink = [ sluglify(i.strip())  for i in code.split(',') ]
+                zPages[ myTag ][ 'links'].append([source ] + myLink)
+                zPages[ myTag ][ 'codes'].extend(myLink)
+
+        masterPageIx = '\n====== Codification detail ======\n'
+        for tag in zPages:
+            zPage = zPages[ tag ]
+
+            masterPageIx += '\n===== {} =====\n'.format(tag)
+            masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
+
+            for source in zPage['sources']:
+                masterPageIx += '\t{0} \t[label="{0}"]\n'.format(source)
+
+
+            masterPageIx += '\n//QdaCodes\nnode [shape=oval]\n'
+            zPage['codes'] = list(set(zPage['codes']))
+            zPage['codes'].sort()
+            for code in zPage['codes']:
+                masterPageIx += '\t{0} \t[label="{0}"]\n'.format(code)
+
+
+            masterPageIx += '\n//QdaLinks\n'
+
+            # Aplana los links para no agregar codigos duplicados
+            myLinks = []
+            for link in zPage['links']:
+                link = ' -> '.join(link)
+                myLinks.append(link)
+
+            myLinks = list(set( myLinks ))
+            myLinks.sort()
+            for link in myLinks:
+                masterPageIx += '\t{}\n'.format(link)
+
+            masterPageIx += '}\n'
+
+        self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 

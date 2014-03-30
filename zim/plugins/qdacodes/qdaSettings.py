@@ -117,3 +117,17 @@ _rebuild_on_preferences = [
     'excluded_subtrees', 
     'batch_clasification'
     ]
+
+
+def sluglify( code  ): 
+
+    import unicodedata
+
+    slug  = unicode( code  )
+    slug = unicodedata.normalize('NFKD', slug )
+    slug = slug.encode('ascii', 'ignore').lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
+
+    return  re.sub(r'[-]+', '_', slug)    
+
+
