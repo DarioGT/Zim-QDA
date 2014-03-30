@@ -31,8 +31,8 @@ from qdaTagListTreeView import TagListTreeView
 from qdaCodesDialog import QdaCodesDialog
 
 
-NOTE_MARK = '%'
-NOTE_AUTOTITLE = 'TITLE'
+from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
+
 
 class QdaCodesPlugin(PluginClass):
 
@@ -47,6 +47,10 @@ class QdaCodesPlugin(PluginClass):
         self.excluded_re = None
         self.db_initialized = False
         self._current_preferences = None
+
+        # Permite el indexamiento de la db en batch  
+        self.allow_index = False   
+
 
     def initialize_ui(self, ui):
         if ui.ui_type == 'gtk':
@@ -101,6 +105,11 @@ class QdaCodesPlugin(PluginClass):
         regex = r'^(' + '|'.join(map(re.escape, self.codes_labels)) + r')(?!\w)'
         self.codes_label_re = re.compile(regex)
 
+
+        # Si el indexamiento es en batch, no permite indexamiento onlin 
+        self.allow_index =  not self.preferences['batch_clasification']
+
+        # Parametros de exclusion e inclusion 
         if self.preferences['included_subtrees']:
             included = [i.strip().strip(':') for i in self.preferences['included_subtrees'].split(',')]
             included.sort(key=lambda s: len(s), reverse=True)  # longest first
@@ -118,8 +127,10 @@ class QdaCodesPlugin(PluginClass):
         excluded.append( self.preferences['namespace'] )
         excluded.sort(key=lambda s: len(s), reverse=True)  # longest first
         excluded_re = '^(' + '|'.join(map(re.escape, excluded)) + ')(:.+)?$'
+
         # ~ print '>>>>>', "excluded_re", repr(excluded_re)
         self.excluded_re = re.compile(excluded_re)
+
 
 
     def _serialize_rebuild_on_preferences(self):
@@ -175,6 +186,8 @@ class QdaCodesPlugin(PluginClass):
 
         # DGT Aqui comienza
         if not self.db_initialized: return
+        if not self.allow_index: return 
+
         if self._excluded( path): return 
 
         # ~ print '>>>>>', path, page, page.hascontent
@@ -213,7 +226,8 @@ class QdaCodesPlugin(PluginClass):
         c = self.index.db.cursor()
         cNumber = 0
         for qCode  in children:
-            cNumber += 1
+            if qCode[2] != NOTE_AUTOTITLE: 
+                cNumber += 1
             c.execute(
                 'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
                 'values (?, ?, ?, ?, ?, ?)',
@@ -275,7 +289,8 @@ class QdaCodesPlugin(PluginClass):
 
         # DGT: Asume que vienen diferentes codigos de la linea (;) y los separa
         for item in items.split(';'):
-            tag = self._getTag (item)
+            item = item.strip(); 
+            tag = self._getTag(item)
 
             # Aisgna el tag por defecto en caso de ser una continuacion de lineas
             if tag[0] != NOTE_MARK:
@@ -285,11 +300,13 @@ class QdaCodesPlugin(PluginClass):
             # Verifica q sea un tag a reportar
             if tag in self.codes_labels:
                 # Asigna la citacion la primera vez q encuentre un codigo valido
+                item = item[ len(tag) + 1: ].strip()
                 citation = citation or self._getCitation(index + 1)
                 codes.append((item, citation , tag[1:]))
 
             # El autotitulo no tiene citation
-            elif tag == NOTE_AUTOTITLE :
+            elif tag[1:] == NOTE_AUTOTITLE :
+                item = item[ len(tag) + 1: ].strip()
                 codes.append((item, '' , tag[1:]))
 
         return codes
@@ -333,11 +350,7 @@ class QdaCodesPlugin(PluginClass):
 
             else:
                 # Add a AutoTitle Mark
-                try: 
-                    ilevel = ( int( level ) - 1 ) * 2 
-                except: ilevel = 0  
-                indent_title = '.' * ilevel
-                items.append('{0}{1} {2} {3}'.format (NOTE_MARK, NOTE_AUTOTITLE, indent_title, self._flatten(nodeAux)))
+                items.append('{0}{1} {2}{3}'.format (NOTE_MARK, NOTE_AUTOTITLE, level, self._flatten(nodeAux)))
 
         elif nodeAux.tag in ('mark', 'strong', 'emphasis'):
             # Add a tuple with item tag
@@ -417,7 +430,11 @@ class QdaCodesPlugin(PluginClass):
         return self.index.lookup_id(qCode['source'])
 
     def show_qda_codes(self):
+
+        self.allow_index = True 
+
         if not self.db_initialized or self.preferences['batch_clasification'] :
+            self.db_initialized = False 
             MessageDialog(self.ui, (
                 _('Need to index the notebook'),
                 # T: Short message text on first time use of qda codes plugin
@@ -427,8 +444,9 @@ class QdaCodesPlugin(PluginClass):
                   'clasification uncheck plugin paramenter //batch_clasification//.')
                 # T: Long message text on first time use of qda codes plugin
             )).run()
-            logger.info('qCodelist not initialized, need to rebuild index')
+            logger.info('qCodelist rebuild index')
             finished = self.ui.reload_index(flush=True)
+
             # Flush + Reload will also initialize qda codes
             if not finished:
                 self.db_initialized = False
@@ -439,9 +457,8 @@ class QdaCodesPlugin(PluginClass):
         dialog.present()
 
         # Retoma la operacion batch
-#         if self.preferences['batch_clasification']:
-#             self.db_initialized = False
-
+        if self.preferences['batch_clasification']:
+            self.allow_index = False 
 
 # Need to register classes defining gobject signals
 gobject.type_register(QdaCodesPlugin)

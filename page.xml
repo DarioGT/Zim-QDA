@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<zim-tree>
+    <h level="1">Pagina1</h>
+    <p>Created Saturday 15 March 2014</p>
+    <h level="1">Titulo1</h>
+    <h level="5">%OL Temas</h>
+    <p>
+        <mark>Four constructs related to organizational learning are articulated, and the literatures related to each are described and critiqued.</mark>
+        <ul>
+            <li bullet="*">
+                <mark>knowledge acquisition,</mark>
+            </li>
+            <li bullet="*">
+                <mark>information distribution,</mark>
+            </li>
+            <li bullet="*">otra en la mitad q no esta clasificada</li>
+            <li bullet="*">
+                <mark>information interpretation,</mark>
+            </li>
+            <li bullet="*">
+                <mark>organizational memory</mark>
+            </li>
+        </ul>
+    </p>
+    <h level="2">Titulo 2</h>
+    <p>Tiene cosas marcadas q no se deben reportar</p>
+    <h level="5">%OL Codigo1 ; Codigo2, subCodigo2</h>
+    <p>
+        Esta es otra
+        <mark>prueba</mark> con varios marcados
+        <strong>en diferentes partes</strong>
+    </p>
+</zim-tree>

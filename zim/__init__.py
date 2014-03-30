@@ -125,6 +125,9 @@ from zim.config import data_dir, config_file, get_config, log_basedirs, \
 
 logger = logging.getLogger('zim')
 
+# DGT 
+DEBUG = True 
+
 
 if ZIM_DATA_DIR:
     # We are running from a source dir - use the locale data included there
@@ -422,8 +425,8 @@ def main(argv):
                 notebook = default
                 logger.info('Opening default notebook')
 
-        # HACK for debuger 
-        if 'standalone' in optsdict or True :
+        # DGT: HACK for debuger 
+        if 'standalone' in optsdict or DEBUG :
             import zim.gui
             try:
                 del optsdict['standalone']

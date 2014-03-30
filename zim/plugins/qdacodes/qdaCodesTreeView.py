@@ -14,7 +14,7 @@ from zim.notebook import Path
 from zim.gui.widgets import ui_environment, BrowserTreeView, encode_markup_text, decode_markup_text
 from zim.gui.clipboard import Clipboard
 
-from qdaSettings import logger, _tag_re, _NO_TAGS
+from qdaSettings import logger, _tag_re, _NO_TAGS, NOTE_MARK, NOTE_AUTOTITLE
 
 import zim.datetimetz as datetime
 
@@ -131,7 +131,10 @@ class QdaCodesTreeView(BrowserTreeView):
 
     def _append_codes(self, code, iter, path_cache):
 
-        for row in self.plugin.list_codes(code):
+        sWhere  = self._getWStmt( self.plugin.preferences['labels'] )
+        sOrder = 'source, citnumber'
+
+        for row in self.plugin.list_codes(parent=code, orderBy=sOrder, whereStmt=sWhere):
 
             if row['source'] not in path_cache:
                 path = self.plugin.get_path(row)
@@ -153,10 +156,11 @@ class QdaCodesTreeView(BrowserTreeView):
 
             #  Code ( description ) 
             nroCita = "{0:03d}".format(row['citnumber'])
+            description = '{0}{1} {2}'.format( NOTE_MARK, label,  row['description']) 
 
             # Insert all columns
             # Visible, MCOL_CODE, MCOL_CITA, MCOL_PAGE, MCOL_NCIT, MCOL_RGID, MCOL_TAGS
-            modelrow = [ True, row['description'] , row['citation'] , path.name, nroCita, row['id'], tags ]
+            modelrow = [ True, description , row['citation'].replace( '\n', ';')  , path.name, nroCita, row['id'], tags ]
 
             modelrow[0] = self._filter_item(modelrow)
             myiter = self.real_model.append(iter, modelrow)
@@ -300,32 +304,33 @@ class QdaCodesTreeView(BrowserTreeView):
             text += ",".join((desc, date, page)) + "\n"
         return text
 
+
+    def _getWStmt( self, baseWhere  ):
+        sWhere = '' 
+        for s in baseWhere.split(','):
+            sWhere += '\'{}\','.format(s.strip().upper() )
+
+        sWhere = 'tag in ({})'.format(sWhere[:-1])
+        return sWhere
+
+
     def get_data_as_page(self, me):
 
         zPages = {}
-
         myTag = ''
         myCode = ''
 
-        sWhere = '1=1'
-        exportOnly = self.plugin.preferences['export_only']
-        if exportOnly:
-            sWhere = ''
-            for s in exportOnly.split(','):
-                sWhere += '\'{}\','.format(s.strip().upper() )
-            sWhere = 'tag in ({})'.format(sWhere[:-1])
-
+        sWhere  = self._getWStmt( self.plugin.preferences['export_only'] or self.plugin.preferences['labels'] )
         sOrder = 'tag, parent, source, description, citnumber'
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
             path = self.plugin.get_path(row)
-            if path is None:
-                continue
+            if path is None: continue
 
             # Format description
             tag = row['tag'].decode('utf-8')
-            code = row['description'].decode('utf-8')[ len(tag) + 1: ]
+            code = row['description'].decode('utf-8')
             source = path.name
             nroCita = "{0:03d}".format(row['citnumber'])
 
@@ -347,17 +352,51 @@ class QdaCodesTreeView(BrowserTreeView):
 
         masterPageIx = '====== Summary ======\nCreated: {}\n\n'.format(datetime.now().isoformat())
 
-        path = self.plugin.preferences['namespace']
+        masterPath = self.plugin.preferences['namespace']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format(path, tag)  , open_page=False)
+            newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format(masterPath, tag)  , open_page=False)
 
             masterPageIx += '[[{}]]\n'.format(newpage.name)
 
         masterPageIx += '\n'
 
-        self.plugin.ui.append_text_to_page(path , masterPageIx)
-        newpage = Path(path)
+        self.plugin.ui.append_text_to_page(masterPath , masterPageIx)
+
+        # TOC 
+        if self.plugin.preferences['table_of_contents'] : 
+
+            sWhere = 'tag = \'{}\''.format( NOTE_AUTOTITLE  )
+            sOrder = 'parent, source, citnumber'
+            mySource = ''
+
+            masterPageIx = '====== Table of contents ======\n'
+
+            for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
+
+                path = self.plugin.get_path(row)
+                if path is None: continue
+
+                code = row['description'].decode('utf-8')
+
+                # Break by source
+                source = path.name
+                if source != mySource:
+                    mySource = source
+                    masterPageIx += '\n===== {} =====\n'.format( code[1:] )
+                    masterPageIx += '[[{}]]\n'.format( source )
+
+                else : 
+                    try:
+                        indent =  '\t' *  ( int( code[0] ) -1 )    
+                    except: indent = ''
+                    masterPageIx += '{0}{1}\n'.format( indent, code[1:] )            
+
+            self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
+
+
+        # Open de index page ( QDA Namespace root )
+        newpage = Path(masterPath)
         self.ui.open_page(newpage)
 
 
@@ -369,11 +408,11 @@ class QdaCodesTreeView(BrowserTreeView):
 
             row = model[iter]
 #             prio = row[self.MCOL_NCIT]
-            desc = row[self.MCOL_CODE].decode('utf-8')
-            cita = row[self.MCOL_CITA].decode('utf-8')
+            code = row[self.MCOL_CODE].decode('utf-8')
+            cita = row[self.MCOL_CITA].decode('utf-8').replace( '\n', ';')
             page = row[self.MCOL_PAGE].decode('utf-8')
 
-            rows.append((indent, desc, cita, page))
+            rows.append((indent, code, cita, page))
 
         model = self.get_model()
         model.foreach(collect)

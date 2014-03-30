@@ -14,6 +14,10 @@ from zim.config import check_class_allow_empty
 logger = logging.getLogger('zim.plugins.qdacodes')
 
 
+NOTE_MARK = '%'
+NOTE_AUTOTITLE = 'QDATITLE'
+
+
 ui_actions = (
     # name, stock id, label, accelerator, tooltip, read only
     ('show_qda_codes', 'zim-qda-codes', _('Qda Codes'), '', _('Qda Codes'), True),
@@ -82,7 +86,6 @@ this notebook. Open codes can be  items marked with tags like "QDA" or "CODE".
 plugin_preferences = (
 
     # # key, type, label, default, validation
-
     # T: label for plugin preferences dialog - labels are e.g. "CODE1", "CODE2",  ...
     ('labels', 'string', _('Labels marking codes'), 'QDA, PROTO, OL', check_class_allow_empty),
 
@@ -97,6 +100,12 @@ plugin_preferences = (
 
     # T: Export only  CODE1, CODE2  ( dafault all ) 
     ('export_only', 'string', _('Export codes'), '', check_class_allow_empty),
+
+    # T: Batch code clasification 
+    ('batch_clasification', 'bool', _('Batch code clasification'), False),
+
+    # T: Resume of Table of Contents
+    ('table_of_contents', 'bool', _('Table of Contents'), True ),
     
 )
 
@@ -105,6 +114,6 @@ plugin_preferences = (
 _rebuild_on_preferences = [
     'labels',
     'included_subtrees',
-    'excluded_subtrees'
+    'excluded_subtrees', 
+    'batch_clasification'
     ]
-
