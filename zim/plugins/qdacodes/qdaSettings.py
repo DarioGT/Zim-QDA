@@ -106,6 +106,9 @@ plugin_preferences = (
 
     # T: Resume of Table of Contents
     ('table_of_contents', 'bool', _('Table of Contents'), True ),
+
+    # T: Resume of Table of Contents
+    ('add_on_export', 'bool', _('Add on export'), False ),
     
 )
 

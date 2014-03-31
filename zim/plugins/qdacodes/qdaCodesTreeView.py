@@ -156,7 +156,7 @@ class QdaCodesTreeView(BrowserTreeView):
 
             #  Code ( description )
             nroCita = "{0:03d}".format(row['citnumber'])
-            description = '{0}{1} {2}'.format(NOTE_MARK, label, row['description'])
+            description = self.get_code_description(row)
 
             # Insert all columns
             # Visible, MCOL_CODE, MCOL_CITA, MCOL_PAGE, MCOL_NCIT, MCOL_RGID, MCOL_TAGS
@@ -165,6 +165,10 @@ class QdaCodesTreeView(BrowserTreeView):
             modelrow[0] = self._filter_item(modelrow)
             myiter = self.real_model.append(iter, modelrow)
 
+    def get_code_description(self, row):
+        """ Linea de descripcion de codigo
+        """
+        return '{0}{1} {2}'.format(NOTE_MARK, row['tag'], row['description'])
 
     def set_filter(self, string):
         # TODO allow more complex queries here - same parse as for search
@@ -278,7 +282,7 @@ class QdaCodesTreeView(BrowserTreeView):
     def _get_raw_text(self, code):
         id = code[self.MCOL_RGID]
         row = self.plugin.get_code(id)
-        return row['description']
+        return self.get_code_description(row)
 
     def do_initialize_popup(self, menu):
         item = gtk.ImageMenuItem('gtk-copy')
@@ -333,14 +337,26 @@ class QdaCodesTreeView(BrowserTreeView):
         return sWhere
 
 
+    def do_delete_QDA(self):
+        """ Borra el Namespace de exportacion
+        """
+        if not self.plugin.preferences['add_on_export']: 
+            masterPath = self.plugin.preferences['namespace']
+            self.plugin.ui.delete_page( Path( masterPath) ) 
+
+
     def get_data_as_page(self, me):
+        """ Opcion de exportacion
+        """
 
         zPages = {}
         myTag = ''
         myCode = ''
 
+        self.do_delete_QDA()
+
         sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
-        sOrder = 'tag, parent, source, description, citnumber'
+        sOrder = 'tag, description, source, citnumber'
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
@@ -385,7 +401,8 @@ class QdaCodesTreeView(BrowserTreeView):
         # TOC
         if self.plugin.preferences['table_of_contents'] :
             self.do_table_of_contents()
-            self.do_code_detail()
+            self.do_code_detail( True )
+            self.do_code_detail( False )
 
         # Open de index page ( QDA Namespace root )
         newpage = Path(masterPath)
@@ -395,7 +412,7 @@ class QdaCodesTreeView(BrowserTreeView):
 
         masterPath = self.plugin.preferences['namespace']
         sWhere = 'tag = \'{}\''.format(NOTE_AUTOTITLE)
-        sOrder = 'parent, source, citnumber'
+        sOrder = 'source, citnumber'
         mySource = ''
 
         masterPageIx = '\n====== Table of contents ======\n'
@@ -423,7 +440,7 @@ class QdaCodesTreeView(BrowserTreeView):
         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 
 
-    def do_code_detail(self):
+    def do_code_detail(self, byTag ):
         """
         Por cada codigo genera las fuentes con formato record y label
         Genera una lista de codigos con su label
@@ -435,7 +452,12 @@ class QdaCodesTreeView(BrowserTreeView):
         masterPath = self.plugin.preferences['namespace']
 
         sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
-        sOrder = 'tag, parent, source, description'
+
+        if byTag: 
+            sOrder = 'tag, source, description'
+        else :
+            sOrder = 'source, tag, description'
+
 
         myTag = ''
         mySource = ''
@@ -449,8 +471,19 @@ class QdaCodesTreeView(BrowserTreeView):
             # Format description
             tag = row['tag'].decode('utf-8').strip()
             code = row['description'].decode('utf-8').strip()
-            source = sluglify (path.name.strip())
+            source = path.name.split(':')[-1] 
+            source = sluglify( source.strip() )
 
+            # Solo la marca, por ejemplo Keywords 
+            if len ( code ) == 0: 
+                continue
+
+            if not byTag:
+                # Break by Source ( Invierte las variables ) 
+                sAux = source
+                source = tag 
+                tag = sAux 
+                
             # Break by Tag
             if tag != myTag:
                 myTag = tag
@@ -464,20 +497,27 @@ class QdaCodesTreeView(BrowserTreeView):
                 mySource = source
                 zPages[ myTag ][ 'sources'].append(mySource)
 
+
             # Break by Code ( links [[]]
             if code != myCode:
                 myCode = code
                 myLink = [ sluglify(i.strip())  for i in code.split(',') ]
-                zPages[ myTag ][ 'links'].append([source ] + myLink)
+                zPages[ myTag ][ 'links'].append([ mySource ] + myLink)
                 zPages[ myTag ][ 'codes'].extend(myLink)
 
-        masterPageIx = '\n====== Codification detail ======\n'
+        if byTag: 
+            masterPageIx = '\n====== Codification detail ======\n'
+        else : 
+            masterPageIx = '\n====== Source detail ======\n'
+
         for tag in zPages:
             zPage = zPages[ tag ]
 
             masterPageIx += '\n===== {} =====\n'.format(tag)
             masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
 
+            zPage['sources'] = list(set(zPage['sources']))
+            zPage['sources'].sort()
             for source in zPage['sources']:
                 masterPageIx += '\t{0} \t[label="{0}"]\n'.format(source)
 
@@ -505,4 +545,5 @@ class QdaCodesTreeView(BrowserTreeView):
             masterPageIx += '}\n'
 
         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
+
 

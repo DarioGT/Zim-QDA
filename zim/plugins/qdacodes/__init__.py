@@ -228,12 +228,16 @@ class QdaCodesPlugin(PluginClass):
         for qCode  in children:
             if qCode[2] != NOTE_AUTOTITLE:
                 cNumber += 1
-            c.execute(
-                'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
-                'values (?, ?, ?, ?, ?, ?)',
-                (page.id, parentid, cNumber) + tuple(qCode)
-            )
-
+                
+            try: 
+                c.execute(
+                    'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
+                    'values (?, ?, ?, ?, ?, ?)',
+                    (page.id, parentid, cNumber) + tuple(qCode)
+                )
+            except: 
+                pass 
+            
     def _extract_codes(self, parsetree):
         '''Extract all codes from a parsetree.
         '''
@@ -261,7 +265,7 @@ class QdaCodesPlugin(PluginClass):
             if not type(item) is tuple:
                 tag = self._getTag(item)
                 if tag[0] == NOTE_MARK:
-                    codes += self._addNewCode(item, index , tag)
+                    codes += self._addNewCode( unicode( item ) , index , tag)
 
 #         print codes
 #         print '----------------'
@@ -292,6 +296,9 @@ class QdaCodesPlugin(PluginClass):
             item = item.strip();
             tag = self._getTag(item)
 
+            if ( not tag ) or ( len(tag) == 0):
+                continue 
+                
             # Aisgna el tag por defecto en caso de ser una continuacion de lineas
             if tag[0] != NOTE_MARK:
                 tag = tag0
