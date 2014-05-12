@@ -13,24 +13,24 @@ from zim.utils import natural_sorted
 from zim.parsing import parse_date
 from zim.plugins import PluginClass
 from zim.notebook import Path
+
 from zim.gui.widgets import ui_environment, \
     Dialog, MessageDialog, \
     InputEntry, Button, IconButton, MenuButton, \
     BrowserTreeView, SingleClickTreeView, ScrolledWindow, HPaned, \
     encode_markup_text, decode_markup_text
+
 from zim.gui.clipboard import Clipboard
 from zim.signals import DelayedCallback, SIGNAL_AFTER
 from zim.formats import get_format, UNCHECKED_BOX, CHECKED_BOX, XCHECKED_BOX
 from zim.config import check_class_allow_empty
 
 
-from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
-
+from qdaCodesDialog import QdaCodesDialog
 from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
-from qdaCodesDialog import QdaCodesDialog
 
-
+from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
 
 
@@ -41,7 +41,8 @@ class QdaCodesPlugin(PluginClass):
     def __init__(self, ui):
         PluginClass.__init__(self, ui)
         self.codes_labels = None
-        self.codes_label_re = None
+        self.all_qda = True 
+
 
         self.included_re = None
         self.excluded_re = None
@@ -50,6 +51,9 @@ class QdaCodesPlugin(PluginClass):
 
         # Permite el indexamiento de la db en batch
         self.allow_index = False
+
+        # No se usa, se maneja todo con SQL o IN 
+        # self.codes_label_re = None
 
 
     def initialize_ui(self, ui):
@@ -96,15 +100,17 @@ class QdaCodesPlugin(PluginClass):
     def _set_preferences(self):
         self._current_preferences = self._serialize_rebuild_on_preferences()
 
-        sLabels = self.preferences['labels'].split(',')
+        sLabels = self.preferences['qda_labels'].split(',')
         if sLabels  :
             self.codes_labels = [ (NOTE_MARK + '{}').format(s.strip().upper()) for s in sLabels ]
         else:
             self.codes_labels = []
 
-        regex = r'^(' + '|'.join(map(re.escape, self.codes_labels)) + r')(?!\w)'
-        self.codes_label_re = re.compile(regex)
+        self.all_qda = self.preferences['all_qda']
 
+        # NO SE USA, se maneja todo con IN  DGT 1404
+        # regex = r'^(' + '|'.join(map(re.escape, self.codes_labels)) + r')(?!\w)'
+        # self.codes_label_re = re.compile(regex)
 
         # Si el indexamiento es en batch, no permite indexamiento onlin
         self.allow_index = not self.preferences['batch_clasification']
@@ -245,7 +251,7 @@ class QdaCodesPlugin(PluginClass):
         # DGT
         # Stack tuple indexes
         codes = []
-        if not self.codes_labels:
+        if not ( self.all_qda or self.codes_labels):
             return codes
 
         # print parsetree.tostring()
@@ -304,17 +310,18 @@ class QdaCodesPlugin(PluginClass):
                 tag = tag0
                 item = '{0} {1}'.format(tag, item.strip())
 
+            # El autotitulo no tiene citation
+            if tag[1:] == NOTE_AUTOTITLE :
+                item = item[ len(tag) + 1: ].strip()
+                codes.append((item, '' , tag[1:]))
+
             # Verifica q sea un tag a reportar
-            if tag in self.codes_labels:
+            elif ( self.all_qda or tag in self.codes_labels):
                 # Asigna la citacion la primera vez q encuentre un codigo valido
                 item = item[ len(tag) + 1: ].strip()
                 citation = citation or self._getCitation(index + 1)
                 codes.append((item, citation , tag[1:]))
 
-            # El autotitulo no tiene citation
-            elif tag[1:] == NOTE_AUTOTITLE :
-                item = item[ len(tag) + 1: ].strip()
-                codes.append((item, '' , tag[1:]))
 
         return codes
 
@@ -436,37 +443,55 @@ class QdaCodesPlugin(PluginClass):
         '''
         return self.index.lookup_id(qCode['source'])
 
-    def show_qda_codes(self):
+    def qda_index_all(self):
 
+        self.db_initialized = False
         self.allow_index = True
 
-        if not self.db_initialized or self.preferences['batch_clasification'] :
+        MessageDialog(self.ui, (
+            _('Need to index the notebook'),
+            # T: Short message text on first time use of qda codes plugin
+            _('The index needs to be rebuild ( it may be the first time )\n'
+              'Depending on the size of the notebook this can\n'
+              'take up to several minutes. If you want onLine code '
+              'clasification uncheck plugin paramenter //batch_clasification//.')
+            # T: Long message text on first time use of qda codes plugin
+        )).run()
+        logger.info('qCodelist rebuild index')
+        finished = self.ui.reload_index(flush=True)
+
+        # Retoma el valor de la conf 
+        self.allow_index = not self.preferences['batch_clasification']
+
+        # Flush + Reload will also initialize qda codes
+        if not finished:
             self.db_initialized = False
-            MessageDialog(self.ui, (
-                _('Need to index the notebook'),
-                # T: Short message text on first time use of qda codes plugin
-                _('The index needs to be rebuild ( it may be the first time )\n'
-                  'Depending on the size of the notebook this can\n'
-                  'take up to several minutes. If you want onLine code '
-                  'clasification uncheck plugin paramenter //batch_clasification//.')
-                # T: Long message text on first time use of qda codes plugin
-            )).run()
-            logger.info('qCodelist rebuild index')
-            finished = self.ui.reload_index(flush=True)
+            return
 
-            # Flush + Reload will also initialize qda codes
-            if not finished:
-                self.db_initialized = False
-                return
 
+    def qda_index_page(self):
+
+        if not self.db_initialized:
+            self.qda_index_all()
+            return
+        
+        # Controla el indexamiento por paginas 
+        self.allow_index = True
+        self.ui.save_page()
+
+        # Retoma el valor de la conf 
+        self.allow_index = not self.preferences['batch_clasification']
+
+
+    def qda_codes_show(self):
+
+        if not self.db_initialized:
+            self.qda_index_all()
 
         dialog = QdaCodesDialog.unique(self, plugin=self)
         dialog.present()
 
-        # Retoma la operacion batch
-        if self.preferences['batch_clasification']:
-            self.allow_index = False
 
 # Need to register classes defining gobject signals
-gobject.type_register(QdaCodesPlugin)
+gobject.type_register(QdaCodesPlugin)  # @UndefinedVariable
 

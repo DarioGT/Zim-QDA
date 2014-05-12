@@ -130,8 +130,10 @@ class QdaCodesTreeView(BrowserTreeView):
         self._labels = {}
 
     def _append_codes(self, code, iter, path_cache):
+        """ Agrega los codigos en la ventana 
+        """
 
-        sWhere = self._getWStmt(self.plugin.preferences['labels'])
+        sWhere = self._getWStmt(self.plugin.preferences['qda_labels'])
         sOrder = 'source, citnumber'
 
         for row in self.plugin.list_codes(parent=code, orderBy=sOrder, whereStmt=sWhere):
@@ -329,11 +331,18 @@ class QdaCodesTreeView(BrowserTreeView):
         return rows
 
     def _getWStmt(self, baseWhere):
-        sWhere = ''
-        for s in baseWhere.split(','):
-            sWhere += '\'{}\','.format(s.strip().upper())
+        """ Toma los codigos definidos en la conf y los coviernte en un where, 
+            en caso de q todos las marcas se tomen como codigos,  solo elimina los titulos (schema)
+        """
 
-        sWhere = 'tag in ({})'.format(sWhere[:-1])
+        sWhere = 'tag != \'{}\''.format( NOTE_AUTOTITLE )
+        if len( baseWhere ) > 0: 
+            sWhere = ''
+            for s in baseWhere.split(','):
+                sWhere += '\'{}\','.format(s.strip().upper())
+    
+            sWhere = 'tag in ({})'.format(sWhere[:-1])
+
         return sWhere
 
 
@@ -342,7 +351,7 @@ class QdaCodesTreeView(BrowserTreeView):
         """
         if not self.plugin.preferences['add_on_export']: 
             masterPath = self.plugin.preferences['namespace']
-            self.plugin.ui.delete_page( Path( masterPath) ) 
+            self.plugin.ui.delete_page(Path(masterPath)) 
 
 
     def get_data_as_page(self, me):
@@ -355,7 +364,7 @@ class QdaCodesTreeView(BrowserTreeView):
 
         self.do_delete_QDA()
 
-        sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
+        sWhere = self._getWStmt(self.plugin.preferences['qda_labels'])
         sOrder = 'tag, description, source, citnumber'
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
@@ -390,9 +399,12 @@ class QdaCodesTreeView(BrowserTreeView):
         masterPath = self.plugin.preferences['namespace']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.plugin.ui.new_page_from_text(zPage , '{0}:{1}'.format(masterPath, tag)  , open_page=False)
-
-            masterPageIx += '[[{}]]\n'.format(newpage.name)
+            newpage = self.plugin.ui.new_page_from_text(zPage , ':{0}:CODE-{1}'.format(masterPath, tag)  , open_page=False)
+            pageName = newpage.name
+            
+            # Se asegura q sea absoluto ( issue  Win - Linux ) 
+            if pageName[0] != ':' : pageName = ':' + pageName 
+            masterPageIx += '[[{}]]\n'.format(pageName)
 
         masterPageIx += '\n'
 
@@ -401,8 +413,8 @@ class QdaCodesTreeView(BrowserTreeView):
         # TOC
         if self.plugin.preferences['table_of_contents'] :
             self.do_table_of_contents()
-            self.do_code_detail( True )
-            self.do_code_detail( False )
+            self.do_code_detail(True)
+            self.do_code_detail(False)
 
         # Open de index page ( QDA Namespace root )
         newpage = Path(masterPath)
@@ -428,7 +440,7 @@ class QdaCodesTreeView(BrowserTreeView):
             source = path.name
             if source != mySource:
                 mySource = source
-                masterPageIx += '\n[[{}]]\n'.format(source)
+                masterPageIx += '\n[[:{}]]\n'.format(source)
                 masterPageIx += '===== {} =====\n'.format(code[1:])
 
             else :
@@ -440,7 +452,7 @@ class QdaCodesTreeView(BrowserTreeView):
         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 
 
-    def do_code_detail(self, byTag ):
+    def do_code_detail(self, byTag):
         """
         Por cada codigo genera las fuentes con formato record y label
         Genera una lista de codigos con su label
@@ -451,7 +463,7 @@ class QdaCodesTreeView(BrowserTreeView):
 
         masterPath = self.plugin.preferences['namespace']
 
-        sWhere = self._getWStmt(self.plugin.preferences['export_only'] or self.plugin.preferences['labels'])
+        sWhere = self._getWStmt(self.plugin.preferences['qda_labels'])
 
         if byTag: 
             sOrder = 'tag, source, description'
@@ -471,11 +483,13 @@ class QdaCodesTreeView(BrowserTreeView):
             # Format description
             tag = row['tag'].decode('utf-8').strip()
             code = row['description'].decode('utf-8').strip()
+            
+            # DGT: Toma el ultimo, no debe ser asi
             source = path.name.split(':')[-1] 
-            source = sluglify( source.strip() )
+            source = sluglify(source.strip())
 
             # Solo la marca, por ejemplo Keywords 
-            if len ( code ) == 0: 
+            if len (code) == 0: 
                 continue
 
             if not byTag:
@@ -506,14 +520,16 @@ class QdaCodesTreeView(BrowserTreeView):
                 zPages[ myTag ][ 'codes'].extend(myLink)
 
         if byTag: 
-            masterPageIx = '\n====== Codification detail ======\n'
+#             masterPageIx = '\n====== Codification detail ======\n'
+            prefixPage = 'MAP-CODE'
         else : 
-            masterPageIx = '\n====== Source detail ======\n'
+#             masterPageIx = '\n====== Source detail ======\n'
+            prefixPage = 'MAP-PAGE'
 
         for tag in zPages:
             zPage = zPages[ tag ]
 
-            masterPageIx += '\n===== {} =====\n'.format(tag)
+            masterPageIx = '\n===== {} =====\n'.format(tag)
             masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
 
             zPage['sources'] = list(set(zPage['sources']))
@@ -544,6 +560,9 @@ class QdaCodesTreeView(BrowserTreeView):
 
             masterPageIx += '}\n'
 
-        self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
+            # Crea la pagina con el fuente del graphviz 
+            newpage = self.plugin.ui.new_page_from_text(masterPageIx , ':{0}:{1}-{2}'.format(masterPath, prefixPage, tag)  , open_page=False)
+
+#         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 
 
