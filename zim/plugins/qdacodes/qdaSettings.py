@@ -114,11 +114,12 @@ plugin_preferences = (
     # T: Batch code clasification 
     ('batch_clasification', 'bool', _('Batch code clasification'), False),
 
-    # T: Resume of Table of Contents
+    ('add_on_export', 'bool', _('Add on export'), False ),
+
     ('table_of_contents', 'bool', _('Table of Contents'), True ),
 
-    # T: Resume of Table of Contents
-    ('add_on_export', 'bool', _('Add on export'), False ),
+    ('map_codes', 'bool', _('Map codes'), True ),
+    ('map_pages', 'bool', _('Map pages'), True ),
     
 )
 

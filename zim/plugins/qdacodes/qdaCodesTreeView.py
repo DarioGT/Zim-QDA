@@ -413,8 +413,12 @@ class QdaCodesTreeView(BrowserTreeView):
         # TOC
         if self.plugin.preferences['table_of_contents'] :
             self.do_table_of_contents()
-            self.do_code_detail(True)
-            self.do_code_detail(False)
+            
+        if self.plugin.preferences['map_codes'] :
+            self.do_map_detail(True)
+
+        if self.plugin.preferences['map_pages'] :
+            self.do_map_detail(False)
 
         # Open de index page ( QDA Namespace root )
         newpage = Path(masterPath)
@@ -452,7 +456,7 @@ class QdaCodesTreeView(BrowserTreeView):
         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 
 
-    def do_code_detail(self, byTag):
+    def do_map_detail(self, byTag):
         """
         Por cada codigo genera las fuentes con formato record y label
         Genera una lista de codigos con su label
@@ -483,10 +487,7 @@ class QdaCodesTreeView(BrowserTreeView):
             # Format description
             tag = row['tag'].decode('utf-8').strip()
             code = row['description'].decode('utf-8').strip()
-            
-            # DGT: Toma el ultimo, no debe ser asi
-            source = path.name.split(':')[-1] 
-            source = sluglify(source.strip())
+            source = path.name 
 
             # Solo la marca, por ejemplo Keywords 
             if len (code) == 0: 
@@ -519,30 +520,42 @@ class QdaCodesTreeView(BrowserTreeView):
                 zPages[ myTag ][ 'links'].append([ mySource ] + myLink)
                 zPages[ myTag ][ 'codes'].extend(myLink)
 
+
         if byTag: 
 #             masterPageIx = '\n====== Codification detail ======\n'
-            prefixPage = 'MAP-CODE'
+            prefixPage = 'MAP-CODES'
+
         else : 
 #             masterPageIx = '\n====== Source detail ======\n'
-            prefixPage = 'MAP-PAGE'
+            prefixPage = 'MAP-PAGES'
 
+        pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
+        self.plugin.ui.append_text_to_page( pageName , '======== {0} =========\n\n'.format( prefixPage  ) )
+
+
+        # sort ( vector )
+        zPagesSort = []          
         for tag in zPages:
+            zPagesSort.append(tag)
+        zPagesSort.sort()
+
+        for tag in zPagesSort:
             zPage = zPages[ tag ]
 
-            masterPageIx = '\n===== {} =====\n'.format(tag)
+            masterPageIx = '======= {} =======\n\n'.format(tag)
             masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
 
             zPage['sources'] = list(set(zPage['sources']))
             zPage['sources'].sort()
             for source in zPage['sources']:
-                masterPageIx += '\t{0} \t[label="{0}"]\n'.format(source)
+                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(source), source )
 
 
             masterPageIx += '\n//QdaCodes\nnode [shape=oval]\n'
             zPage['codes'] = list(set(zPage['codes']))
             zPage['codes'].sort()
             for code in zPage['codes']:
-                masterPageIx += '\t{0} \t[label="{0}"]\n'.format(code)
+                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(code), code  )
 
 
             masterPageIx += '\n//QdaLinks\n'
@@ -551,7 +564,7 @@ class QdaCodesTreeView(BrowserTreeView):
             myLinks = []
             for link in zPage['links']:
                 for i in range(0, len (link) - 1):
-                    myLinks.append('{0} -> {1}'.format(link[i], link[i + 1]))
+                    myLinks.append('{0} -> {1}'.format( sluglify(link[i]), sluglify(link[i + 1])))
 
             myLinks = list(set(myLinks))
             myLinks.sort()
@@ -560,9 +573,12 @@ class QdaCodesTreeView(BrowserTreeView):
 
             masterPageIx += '}\n'
 
-            # Crea la pagina con el fuente del graphviz 
-            newpage = self.plugin.ui.new_page_from_text(masterPageIx , ':{0}:{1}-{2}'.format(masterPath, prefixPage, tag)  , open_page=False)
+            # Crea la pagina con el fuente del graphviz
+            pageName =  ':{0}:{1}:{2}'.format(masterPath, prefixPage, tag) 
+            self.plugin.ui.append_text_to_page( pageName , masterPageIx + '\n')
 
-#         self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
-
+            # Add index 
+            masterPageIx = '[[{}]]\n'.format(pageName)
+            pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
+            self.plugin.ui.append_text_to_page( pageName , masterPageIx )
 
