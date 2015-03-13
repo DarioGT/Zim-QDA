@@ -10,10 +10,7 @@ import pango
 
 from zim.utils import natural_sorted
 from zim.gui.widgets import SingleClickTreeView
-
-from qdaSettings import  _NO_TAGS
-
-NOTE_MARK = '%'
+from qdaSettings import  _NO_TAGS, NOTE_MARK
 
 class TagListTreeView(SingleClickTreeView):
     '''TreeView with a single column 'Tags' which shows all tags available
@@ -66,7 +63,8 @@ class TagListTreeView(SingleClickTreeView):
         labels = []
         for row in self._get_selected():
             if row[2] == self._type_label:
-                labels.append(NOTE_MARK + row[0])
+                # labels.append(NOTE_MARK + row[0])
+                labels.append( row[0])
         return labels or None
 
     def _get_selected(self):
@@ -100,7 +98,7 @@ class TagListTreeView(SingleClickTreeView):
         if _NO_TAGS in tags:
             n_untagged = tags.pop(_NO_TAGS)
             model.append((_('Untagged'), n_untagged, self._type_untagged, pango.WEIGHT_NORMAL))
-            # T: label in qdacodes plugins for codes without a tag
+#             T: label in qdacodes plugins for codes without a tag
 
         model.append(('', 0, self._type_separator, 0))  # separator
 

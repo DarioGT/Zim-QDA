@@ -457,7 +457,10 @@ class XDotAttrParser:
         return res
 
     def read_number(self):
-        return int(self.read_code())
+        try: 
+            return int(self.read_code())
+        except:  
+            return 0 
 
     def read_float(self):
         return float(self.read_code())

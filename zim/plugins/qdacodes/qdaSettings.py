@@ -20,8 +20,8 @@ NOTE_MARK = '%'
 
 ui_actions = (
     # name, stock id, label, accelerator, tooltip, read only
-    ('qda_codes_show', 'zim-qda', _('Qda Show'), '<alt>Q', _('Qda Show'), True),
-    ('qda_index_all', 'zim-qda-ix', _('Qda IndexAll'), '<shift><alt>Q', _('Qda IndexAll'), True),
+    ('qda_codes_show', 'zim-qda', _('Qda Show'), '<shift><alt>Q', _('Qda Show'), True),
+    ('qda_index_all', 'zim-qda-ix', _('Qda IndexAll'), '', _('Qda IndexAll'), True),
     ('qda_index_page', 'zim-qda-ip', _('Qda IndexPage'), '<shift><ctrl>Q', _('Qda IndexPage'), True),
 )
 
@@ -97,7 +97,7 @@ this notebook. Open codes can be  items marked with tags like "QDA" or "CODE".
 plugin_preferences = (
 
     # key, type, label, default, validation
-    ('all_qda', 'bool', _('Consider all \% as tasks'), True),
+    ('all_qda', 'bool', _('Consider all tags as qdacodes'), True),
 
     # T: label for plugin preferences dialog - labels are e.g. "CODE1", "CODE2",  ...
     ('qda_labels', 'string', _('Labels marking codes'), 'QDA, PROTO, OL', check_class_allow_empty),

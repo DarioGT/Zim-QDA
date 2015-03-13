@@ -33,6 +33,7 @@ from qdaTagListTreeView import TagListTreeView
 from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
 
+TAG_MARK = ""
 
 class QdaCodesPlugin(PluginClass):
 
@@ -270,7 +271,7 @@ class QdaCodesPlugin(PluginClass):
         for index, item in enumerate(self.lines):
             if not type(item) is tuple:
                 tag = self._getTag(item)
-                if tag[0] == NOTE_MARK:
+                if tag[0] in ( NOTE_MARK, TAG_MARK ) :
                     codes += self._addNewCode( unicode( item ) , index , tag)
 
 #         print codes
@@ -298,29 +299,38 @@ class QdaCodesPlugin(PluginClass):
         citation = None
 
         # DGT: Asume que vienen diferentes codigos de la linea (;) y los separa
-        for item in items.split(';'):
-            item = item.strip();
-            tag = self._getTag(item)
+        # 1503 Se dejan tal cual, el manejo del mapa se ocupa 
+        # for item in items.split(';'): item = item.strip();
 
-            if ( not tag ) or ( len(tag) == 0):
-                continue 
-                
-            # Aisgna el tag por defecto en caso de ser una continuacion de lineas
-            if tag[0] != NOTE_MARK:
-                tag = tag0
-                item = '{0} {1}'.format(tag, item.strip())
+        # Tomas los valores antes de los dos puntos 
+        item = items.split(':')[0]
+            
+        tag = self._getTag(item)
 
-            # El autotitulo no tiene citation
-            if tag[1:] == NOTE_AUTOTITLE :
-                item = item[ len(tag) + 1: ].strip()
-                codes.append((item, '' , tag[1:]))
+        if ( not tag ) or ( len(tag) == 0):
+#             continue 
+            return codes 
+            
+        # Aisgna el tag por defecto en caso de ser una continuacion de lineas
+        if tag[0] not in ( NOTE_MARK, TAG_MARK ):
+            tag = tag0
+            item = '{0} {1}'.format(tag, item.strip())
 
-            # Verifica q sea un tag a reportar
-            elif ( self.all_qda or tag in self.codes_labels):
-                # Asigna la citacion la primera vez q encuentre un codigo valido
-                item = item[ len(tag) + 1: ].strip()
-                citation = citation or self._getCitation(index + 1)
-                codes.append((item, citation , tag[1:]))
+        # El autotitulo no tiene citation
+        if tag[1:] == NOTE_AUTOTITLE :
+            item = item[ len(tag) + 1: ].strip()
+            codes.append((item, '' , tag[1:]))
+
+        # Verifica q sea un tag a reportar
+        elif ( self.all_qda or tag in self.codes_labels):
+            # Asigna la citacion la primera vez q encuentre un codigo valido
+            item = item[ len(tag) + 1: ].strip()
+
+#           Dgt 1503 La busqueda de las citaciones es lenta y realmente no me esta siriviendo de mucho 
+#           citation = citation or self._getCitation(index + 1)
+            citation= ""
+
+            codes.append((item, citation , tag[1:]))
 
 
         return codes
@@ -335,7 +345,7 @@ class QdaCodesPlugin(PluginClass):
                 citation += item[0] + '\n'
 
             # Al encontrar una marca retorna
-            elif item[0] == NOTE_MARK:
+            elif item[0] in ( NOTE_MARK, TAG_MARK ) :
                 return citation
 
         # Elimina el ultimo \n
@@ -348,7 +358,7 @@ class QdaCodesPlugin(PluginClass):
         # the checkbox type, the indenting level and the text.
         items = []
 
-        if nodeAux.tag in ('p', 'div'):
+        if nodeAux.tag in ('p', 'div' ):
             # Agrega el texto y verifica los hijos, si no hay nada viene vacio
             itAux = []
             for lnAux in (nodeAux.text or '').splitlines():
@@ -378,11 +388,29 @@ class QdaCodesPlugin(PluginClass):
             elif nodeAux.tag in ('ol', 'li'):
                 prefix = '* '
 
-            for childList in nodeAux.getchildren():
-                # items += self._flatten_para(childList)
-                subText = self._flatten_para(childList)
-                for subLine in subText:
-                    items.append((prefix + subLine[0], subLine[1]))
+            for subNode in nodeAux.getchildren():
+                # QDA Tag                  
+                if subNode.tag in ('tag' ):
+                    sNode = subNode.text
+                    sAux = subNode.tail.split()
+
+                    # Si Es una lista de tags solo toma el primero  
+                    if len( sAux ) > 0: 
+                        sAux = sAux[0]
+                        # no toma comas 
+                        if sAux[0] in ( ',',';','.'): 
+                            sAux = ""
+                    else: sAux = ""
+
+                    lnAux = '{0} {1}'.format (sNode, sAux )
+                    items.append( lnAux )
+
+                else: 
+                    # items += self._flatten_para(childList)
+                    subText = self._flatten_para(subNode)
+                    for subLine in subText:
+                        items.append((prefix + subLine[0], subLine[1]))
+
 
         return items
 
@@ -416,8 +444,7 @@ class QdaCodesPlugin(PluginClass):
 
     def list_codes(self, parent=None, orderBy='source, citnumber', whereStmt='1=1'):
         '''List codes
-        @param parent: the parent qCode (as returned by this method) or C{None} to list
-        all top level codes
+        @param parent: the parent qCode (as returned by this method) or C{None} to list all top level codes
         @returns: a list of codes at this level as sqlite Row objects
         '''
         if parent: parentid = parent['id']

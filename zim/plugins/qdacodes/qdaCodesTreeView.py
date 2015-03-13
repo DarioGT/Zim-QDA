@@ -170,16 +170,18 @@ class QdaCodesTreeView(BrowserTreeView):
     def get_code_description(self, row):
         """ Linea de descripcion de codigo
         """
-        return '{0}{1} {2}'.format(NOTE_MARK, row['tag'], row['description'])
+        # return '{0}{1} {2}'.format(NOTE_MARK, row['tag'], row['description'])
+        return '{0}{1} {2}'.format('', row['tag'], row['description'])
 
     def set_filter(self, string):
-        # TODO allow more complex queries here - same parse as for search
+        # FIXME FILTER allow more complex queries here - same parse as for search
         if string:
             inverse = False
-            if string.lower().startswith('not '):
-                # Quick HACK to support e.g. "not @waiting"
-                inverse = True
-                string = string[4:]
+            # if string.lower().startswith('not '):
+            #     # Quick HACK to support e.g. "not @waiting"
+            #     inverse = True
+            #     string = string[4:]
+
             self.filter = (inverse, string.strip().lower())
         else:
             self.filter = None
@@ -194,10 +196,11 @@ class QdaCodesTreeView(BrowserTreeView):
 
     def get_tags(self):
         '''Get all tags that are in use
-        @returns: a dict with tags as keys and the number of codes
+        @returns: a dict with filenames as keys and the number of codes
         per tag as value
         '''
-        return self._tags
+# 		return self._tags
+        return {}
 
     def get_n_codes(self):
         '''Get the number of codes in the list
@@ -266,11 +269,19 @@ class QdaCodesTreeView(BrowserTreeView):
 
         if visible and self.filter:
             # And finally the filter string should match
-            # FIXME: we are matching against markup text here - may fail for some cases
-            inverse, string = self.filter
-            match = string in description or string in pagename
-            if (not inverse and not match) or (inverse and match):
-                visible = False
+            # FIXME: FILTER: manejo de filtro a dif nivlkes
+            inverse, filterStmt = self.filter
+            lStmt = filterStmt.split() 
+            for stmt in lStmt: 
+                inverse = False 
+                if stmt.lower()[0] in ('!', '-')  :
+                    inverse = True
+                    stmt = stmt[1:]
+            
+                match = stmt in description or stmt in pagename 
+                if (not inverse and not match) or (inverse and match):
+                    visible = False
+                    break 
 
         return visible
 
@@ -346,239 +357,12 @@ class QdaCodesTreeView(BrowserTreeView):
         return sWhere
 
 
-    def do_delete_QDA(self):
-        """ Borra el Namespace de exportacion
-        """
-        if not self.plugin.preferences['add_on_export']: 
-            masterPath = self.plugin.preferences['namespace']
-            self.plugin.ui.delete_page(Path(masterPath)) 
-
 
     def get_data_as_page(self, me):
-        """ Opcion de exportacion
+        """ Opcion de exportacion  llamada desde el boton de la ventana 
         """
-
-        zPages = {}
-        myTag = ''
-        myCode = ''
-
-        self.do_delete_QDA()
-
-        sWhere = self._getWStmt(self.plugin.preferences['qda_labels'])
-        sOrder = 'tag, description, source, citnumber'
-
-        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
-
-            path = self.plugin.get_path(row)
-            if path is None: continue
-
-            # Format description
-            tag = row['tag'].decode('utf-8')
-            code = row['description'].decode('utf-8')
-            source = path.name
-            nroCita = "{0:03d}".format(row['citnumber'])
-
-            # Break by Tag
-            if tag != myTag:
-                myTag = tag
-                zPages[ myTag ] = '====== {} ======\n'.format(tag)
-                zPages[ myTag ] += 'Created {} \n\n'.format(datetime.now().isoformat())
-
-            # Break by Code
-            if code != myCode:
-                myCode = code
-                zPages[ myTag ] += '===== {} =====\n\n'.format(code)
-
-            # Break by Page
-            zPages[ myTag ] += '[[{0}]]  **{1}**\n'.format(source, nroCita)
-            zPages[ myTag ] += '{}\n\n'.format(row['citation'].decode('utf-8'))
-
-
-        masterPageIx = '====== Summary ======\nCreated: {}\n\n'.format(datetime.now().isoformat())
-
-        masterPath = self.plugin.preferences['namespace']
-        for tag in zPages:
-            zPage = zPages[ tag ]
-            newpage = self.plugin.ui.new_page_from_text(zPage , ':{0}:CODE-{1}'.format(masterPath, tag)  , open_page=False)
-            pageName = newpage.name
-            
-            # Se asegura q sea absoluto ( issue  Win - Linux ) 
-            if pageName[0] != ':' : pageName = ':' + pageName 
-            masterPageIx += '[[{}]]\n'.format(pageName)
-
-        masterPageIx += '\n'
-
-        self.plugin.ui.append_text_to_page(masterPath , masterPageIx)
-
-        # TOC
-        if self.plugin.preferences['table_of_contents'] :
-            self.do_table_of_contents()
-            
-        if self.plugin.preferences['map_codes'] :
-            self.do_map_detail(True)
-
-        if self.plugin.preferences['map_pages'] :
-            self.do_map_detail(False)
-
-        # Open de index page ( QDA Namespace root )
-        newpage = Path(masterPath)
-        self.ui.open_page(newpage)
-
-    def do_table_of_contents(self):
-
-        masterPath = self.plugin.preferences['namespace']
-        sWhere = 'tag = \'{}\''.format(NOTE_AUTOTITLE)
-        sOrder = 'source, citnumber'
-        mySource = ''
-
-        masterPageIx = '\n====== Table of contents ======\n'
-
-        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
-
-            path = self.plugin.get_path(row)
-            if path is None: continue
-
-            code = row['description'].decode('utf-8')
-
-            # Break by source
-            source = path.name
-            if source != mySource:
-                mySource = source
-                masterPageIx += '\n[[:{}]]\n'.format(source)
-                masterPageIx += '===== {} =====\n'.format(code[1:])
-
-            else :
-                try:
-                    indent = '\t' * (int(code[0]) - 1)
-                except: indent = ''
-                masterPageIx += '{0}{1}\n'.format(indent, code[1:])
-
-        self.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
-
-
-    def do_map_detail(self, byTag):
-        """
-        Por cada codigo genera las fuentes con formato record y label
-        Genera una lista de codigos con su label
-        genera la conexion de cada autor con los codigos
-        si existen jerarquias ( listas separadas por , ) las presenta encadendas
-        cuando hay conceptos jerarquizados no deberia vincularlos a la fuente
-        """
-
-        masterPath = self.plugin.preferences['namespace']
-
-        sWhere = self._getWStmt(self.plugin.preferences['qda_labels'])
-
-        if byTag: 
-            sOrder = 'tag, source, description'
-        else :
-            sOrder = 'source, tag, description'
-
-
-        myTag = ''
-        mySource = ''
-        myCode = ''
-        zPages = {}
-
-        for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
-            path = self.plugin.get_path(row)
-            if path is None: continue
-
-            # Format description
-            tag = row['tag'].decode('utf-8').strip()
-            code = row['description'].decode('utf-8').strip()
-            source = path.name 
-
-            # Solo la marca, por ejemplo Keywords 
-            if len (code) == 0: 
-                continue
-
-            if not byTag:
-                # Break by Source ( Invierte las variables ) 
-                sAux = source
-                source = tag 
-                tag = sAux 
-                
-            # Break by Tag
-            if tag != myTag:
-                myTag = tag
-                mySource = ''
-                myCode = ''
-
-                zPages[ myTag ] = { 'sources' : [], 'codes' : [], 'links' : [] }
-
-            # Break by source
-            if source != mySource:
-                mySource = source
-                zPages[ myTag ][ 'sources'].append(mySource)
-
-
-            # Break by Code ( links [[]]
-            if code != myCode:
-                myCode = code
-                myLink = [ sluglify(i.strip())  for i in code.split(',') ]
-                zPages[ myTag ][ 'links'].append([ mySource ] + myLink)
-                zPages[ myTag ][ 'codes'].extend(myLink)
-
-
-        if byTag: 
-#             masterPageIx = '\n====== Codification detail ======\n'
-            prefixPage = 'MAP-CODES'
-
-        else : 
-#             masterPageIx = '\n====== Source detail ======\n'
-            prefixPage = 'MAP-PAGES'
-
-        pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
-        self.plugin.ui.append_text_to_page( pageName , '======== {0} =========\n\n'.format( prefixPage  ) )
-
-
-        # sort ( vector )
-        zPagesSort = []          
-        for tag in zPages:
-            zPagesSort.append(tag)
-        zPagesSort.sort()
-
-        for tag in zPagesSort:
-            zPage = zPages[ tag ]
-
-            masterPageIx = '======= {} =======\n\n'.format(tag)
-            masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
-
-            zPage['sources'] = list(set(zPage['sources']))
-            zPage['sources'].sort()
-            for source in zPage['sources']:
-                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(source), source )
-
-
-            masterPageIx += '\n//QdaCodes\nnode [shape=oval]\n'
-            zPage['codes'] = list(set(zPage['codes']))
-            zPage['codes'].sort()
-            for code in zPage['codes']:
-                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(code), code  )
-
-
-            masterPageIx += '\n//QdaLinks\n'
-
-            # Aplana los links para no agregar codigos duplicados
-            myLinks = []
-            for link in zPage['links']:
-                for i in range(0, len (link) - 1):
-                    myLinks.append('{0} -> {1}'.format( sluglify(link[i]), sluglify(link[i + 1])))
-
-            myLinks = list(set(myLinks))
-            myLinks.sort()
-            for link in myLinks:
-                masterPageIx += '\t{}\n'.format(link)
-
-            masterPageIx += '}\n'
-
-            # Crea la pagina con el fuente del graphviz
-            pageName =  ':{0}:{1}:{2}'.format(masterPath, prefixPage, tag) 
-            self.plugin.ui.append_text_to_page( pageName , masterPageIx + '\n')
-
-            # Add index 
-            masterPageIx = '[[{}]]\n'.format(pageName)
-            pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
-            self.plugin.ui.append_text_to_page( pageName , masterPageIx )
-
+        
+        from qdaExport import doQdaExport  
+        qdaExport =  doQdaExport( self   )
+        qdaExport.do_export()
+        

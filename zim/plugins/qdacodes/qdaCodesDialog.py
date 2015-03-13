@@ -33,6 +33,7 @@ class QdaCodesDialog(Dialog):
             self.resize(800, 480)
             # Force maximum dialog size under maemo, otherwise
             # we'll end with a too small dialog and no way to resize it
+            
         hbox = gtk.HBox(spacing=5)
         self.vbox.pack_start(hbox, False)
         self.hpane = HPaned()
@@ -40,7 +41,7 @@ class QdaCodesDialog(Dialog):
         self.hpane.set_position(self.uistate['hpane_pos'])
         self.vbox.add(self.hpane)
 
-        # Task list
+        # Code list
         self.qda_codes = QdaCodesTreeView(self.ui, plugin)
         self.qda_codes.set_headers_visible(True)  # Fix for maemo
         self.hpane.add2(ScrolledWindow(self.qda_codes))

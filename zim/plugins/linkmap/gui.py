@@ -38,12 +38,16 @@ class GtkLinkMap():
 
     def show_linkmap(self):
         linkmap = LinkMap(self.ui.notebook, self.ui.page)
-        dialog = LinkMapDialog(self.ui, linkmap)
-        dialog.show_all()
+        
+        mapSource = linkmap.get_dotcode()
+        self.ui.new_page_from_text(mapSource, ':docMap', open_page=True)
+        
+#         dialog = LinkMapDialog(self.ui, linkmap)
+#         dialog.show_all()
 
 
 class LinkMapDialog(Dialog):
-
+ 
     def __init__(self, ui, linkmap):
         if ui_environment['platform'] == 'maemo':
             defaultsize = (800, 480)
@@ -55,16 +59,18 @@ class LinkMapDialog(Dialog):
         Dialog.__init__(self, ui, 'LinkMap',
             defaultwindowsize=defaultsize, buttons=gtk.BUTTONS_CLOSE)
         self.linkmap = linkmap
-
+ 
         hbox = gtk.HBox(spacing=5)
         self.vbox.add(hbox)
-
+ 
+#       Dgt : Solo tomar el map 
         self.xdotview = xdot.DotWidget()
         self.xdotview.set_filter('fdp')
+ 
         self.xdotview.set_dotcode(linkmap.get_dotcode())
         self.xdotview.connect('clicked', self.on_node_clicked)
         hbox.add(self.xdotview)
-
+ 
         vbox = gtk.VBox()
         hbox.pack_start(vbox, False)
         for stock, method in (
@@ -76,6 +82,6 @@ class LinkMapDialog(Dialog):
             button = IconButton(stock)
             button.connect('clicked', method)
             vbox.pack_start(button, False)
-
+ 
     def on_node_clicked(self, widget, name, event):
         self.ui.open_page(Path(name))
