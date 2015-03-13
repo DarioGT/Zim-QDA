@@ -303,9 +303,8 @@ class QdaCodesPlugin(PluginClass):
         # for item in items.split(';'): item = item.strip();
 
         # Tomas los valores antes de los dos puntos 
-        item = items.split(':')[0]
-            
-        tag = self._getTag(item)
+        item = items # .split(':')[0]
+        tag = self._getTag(items)
 
         if ( not tag ) or ( len(tag) == 0):
 #             continue 
@@ -509,6 +508,10 @@ class QdaCodesPlugin(PluginClass):
         # Retoma el valor de la conf 
         self.allow_index = not self.preferences['batch_clasification']
 
+        # Genera el mapa  
+        from qdaExportMapDoc import doQdaExportMapDoc
+        qdaExport =  doQdaExportMapDoc( self, self )
+        qdaExport.do_ExportMapDoc()
 
     def qda_codes_show(self):
 
