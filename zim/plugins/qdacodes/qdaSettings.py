@@ -72,6 +72,25 @@ create table if not exists qdacodes (
     tag TEXT,
     description TEXT
 );
+
+create table if not exists qdamapcodes (
+    id INTEGER PRIMARY KEY,
+    code TEXT,
+    codetype TEXT
+);
+
+create table if not exists qdamaprels (
+    id INTEGER PRIMARY KEY,
+    code1 TEXT,
+    code2 TEXT
+);
+
+create table if not exists qdamapsource (
+    id INTEGER PRIMARY KEY,
+    code TEXT,
+    source INTEGER
+);
+
 '''
 #===============================================================================
 # QdaCodesPlugin

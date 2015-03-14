@@ -30,6 +30,7 @@ from qdaCodesDialog import QdaCodesDialog
 from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
 
+from qdaExportMapDoc import doQdaExportMapDoc
 from qdaExportMapDoc import getTag 
 
 from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
@@ -159,6 +160,10 @@ class QdaCodesPlugin(PluginClass):
         if self.db_initialized:
             try:
                 self.index.db.execute('DROP TABLE "qdacodes"')
+
+                self.index.db.execute('DROP TABLE "qdamapcodes"')
+                self.index.db.execute('DROP TABLE "qdamaprels"')
+                self.index.db.execute('DROP TABLE "qdamapsource"')
             except:
                 logger.exception('Could not drop table:')
             else:
@@ -166,6 +171,10 @@ class QdaCodesPlugin(PluginClass):
         else:
             try:
                 self.index.db.execute('DROP TABLE "qdacodes"')
+
+                self.index.db.execute('DROP TABLE "qdamapcodes"')
+                self.index.db.execute('DROP TABLE "qdamaprels"')
+                self.index.db.execute('DROP TABLE "qdamapsource"')
             except:
                 pass
 
@@ -219,18 +228,26 @@ class QdaCodesPlugin(PluginClass):
 
         # ~ print '!! Checking for codes in', path
         codes = self._extract_codes(parsetree)
+
+        # qdaMap 
+        zPage = qdaExport.do_MapDocCodes( path, page )
+
         # ~ print 'qCodeS', codes
 
         if codes:
             # Do insert with a single commit
             with self.index.db_commit:
-                self._insert(path, 0, codes)
+                self._insertTag(path, 0, codes)
+
+            # Do insert with a single commit
+            with self.index.db_commit:
+                self._insertMap(path, zPage)
 
         if codes or qCodesfound:
             self.emit('qdacodes-changed')
 
 
-    def _insert(self, page, parentid, children):
+    def _insertTag(self, page, parentid, children):
         # Helper function to insert codes in table
         c = self.index.db.cursor()
         cNumber = 0
@@ -246,6 +263,45 @@ class QdaCodesPlugin(PluginClass):
                 )
             except: 
                 pass 
+
+
+    def _insertMap(self, page, zPage):
+        # Helper function to insert codes in table
+        c = self.index.db.cursor()
+
+        # Crea la coleccion de codigos 
+        qdamapcodes  = [tuple([page.basename ,'S'])]
+
+        for myTag in zPage['tags']:
+            qdamapcodes.append( tuple([myLink ,'T']))
+
+        for myTag in zPage['codes']:
+            qdamapcodes.append( tuple([myLink ,'C']))
+
+        # Inserta los codigos y sus dependencias a la pagina 
+        for myTag in qdamapcodes:
+            try: 
+                c.execute(
+                    'insert into qdamapcodes( code, codetype )'
+                    'values (?, ?)', tuple(myTag)
+                )
+            except:  pass 
+
+            try: 
+                c.execute(
+                    'insert into qdamapsource( code, source )'
+                    'values (?, ?)', tuple( [myTag[0], page.id] )
+                )
+            except:  pass 
+
+        # Inserta las relaciones entre codigos 
+        for myTag in zPage['links']:
+            try: 
+                c.execute(
+                    'insert into qdamaprels( code1, code2 )'
+                    'values (?, ?)', tuple( [myTag.split(' -> ')])
+                )
+            except:  pass 
             
     def _extract_codes(self, parsetree):
         '''Extract all codes from a parsetree.
@@ -421,7 +477,6 @@ class QdaCodesPlugin(PluginClass):
         return text.strip()
 
 
-
     def remove_page(self, index, path, _emit=True):
         if not self.db_initialized: return
 
@@ -431,10 +486,23 @@ class QdaCodesPlugin(PluginClass):
             cursor.execute('delete from qdacodes where source=?', (path.id,))
             qCodesfound = cursor.rowcount > 0
 
+        with index.db_commit:
+            # Borra las relaciones con la fuente 
+            cursor.execute('delete from qdamapsource where source=?', (path.id,))
+
+            # Borra los codigos sin relaciones en las fuentes 
+            cursor.execute('delete from qdamapcodes where code not in (Select code from qdamapsource)')
+
+            # Borra los codigos sin relaciones en las fuentes 
+            cursor.execute('delete from qdamaprels where code1 not in (Select code from qdamapsource)')
+            cursor.execute('delete from qdamaprels where code2 not in (Select code from qdamapsource)')
+
         if qCodesfound and _emit:
             self.emit('qdacodes-changed')
 
         return qCodesfound
+
+
 
     def list_codes(self, parent=None, orderBy='source, citnumber', whereStmt='1=1'):
         '''List codes
@@ -450,6 +518,30 @@ class QdaCodesPlugin(PluginClass):
             cursor.execute(sqlStmt , (parentid,))
             for row in cursor:
                 yield row
+
+
+    def list_mapcodes(self, whereStmt='1=2'):
+        '''List mapcodes 
+        @returns: a list of map codes at this level as sqlite Row objects
+        '''
+        if self.db_initialized:
+            cursor = self.index.db.cursor()
+            sqlStmt = 'select * from qdamapcodes where {0}'.format(whereStmt)
+            cursor.execute(sqlStmt)
+            for row in cursor:
+                yield row
+
+    def list_maprels(self, whereStmt='1=2'):
+        '''List mapcodes 
+        @returns: a list of map codes at this level as sqlite Row objects
+        '''
+        if self.db_initialized:
+            cursor = self.index.db.cursor()
+            sqlStmt = 'select * from qdamaprels where {0}'.format(whereStmt)
+            cursor.execute(sqlStmt)
+            for row in cursor:
+                yield row
+
 
 
     def get_code(self, qCodeid):
@@ -504,9 +596,12 @@ class QdaCodesPlugin(PluginClass):
         self.allow_index = not self.preferences['batch_clasification']
 
         # Genera el mapa  
-        from qdaExportMapDoc import doQdaExportMapDoc
         qdaExport =  doQdaExportMapDoc( self  )
-        qdaExport.do_ExportMapDoc()
+
+        zPage = qdaExport.do_MapDocCodes( self.ui.path, self.ui.page )
+        dotFile = doDotFile( self.path.basename, zPage )
+        doViewDotFile( self.path.basename, self.page.folder, dotFile  )
+
 
     def qda_codes_show(self):
 

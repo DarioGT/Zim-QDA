@@ -26,21 +26,22 @@ class doQdaExportMapDoc(object):
 
         self.plugin = plugin
         self.ui = plugin.ui 
-        self.page = plugin.ui.page   
-        self.path = self.ui.notebook.index.lookup_path(self.page )
-        self.pageId = self.path.id    
 
 
-    def do_ExportMapDoc(self):
+    def do_MapDocCodes(self, path, page):
         """ Exporta el mapa del documento  ( ver wiki )
         """
+
+        self.page = page   
+        self.path = self.ui.notebook.index.lookup_path(self.page )
+        self.pageId = self.path.id    
 
         # La idea es q sea por fuente en la idenxacion del documento                  
         sOrder = 'source, tag, description'
         sWhere = 'tag <> \'{1}\' and source = {0}'.format( self.pageId, 'QDATITLE' )
 
         pageName = self.path.basename
-        zPage = {  'tags' : [], 'links' : [] }
+        zPage = {  'tags' : [], 'links' : [], 'codes' : [] }
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
@@ -60,8 +61,8 @@ class doQdaExportMapDoc(object):
                 if i > 0: 
                     tag2 = getTag( linkA )
                     if len( tag2 ) > 1 : 
+                        linkA = linkA[len(tag2):].strip()
                         tag2 = tag2[1:].strip() 
-                        linkA = linkA[len(tag2)+1:].strip()
                 else: tag2 = tag0 
 
                 if len( tag2 ) == 0 : tag2 = tag0
@@ -72,7 +73,7 @@ class doQdaExportMapDoc(object):
 
                 doCodeRelations( zPage, linkA, tag2, myTag )
 
-        doDotFile( self.path.basename, self.page.folder, zPage )
+        return zPage 
 
 
 def doCodeRelations( zPage, linkA, tag, myTag ):
@@ -86,7 +87,7 @@ def doCodeRelations( zPage, linkA, tag, myTag ):
         if SEPLISTA in code and i == 0  : 
             myCodeB = [ j.strip() for j in code.split(SEPLISTA) ] 
             for codeB in myCodeB :
-                addMapLink( myTag, codeB, zPage )
+                addMapLink( myTag, codeB, zPage, True )
 
         # Tiene q dividir el ultimo nodo 
         elif SEPLISTA in code and i == (len (linkB) - 1)   : 
@@ -97,7 +98,7 @@ def doCodeRelations( zPage, linkA, tag, myTag ):
 
         # Primer nivel con tag 
         elif i == 0 and tag != '=': 
-            addMapLink ( myTag , code, zPage )
+            addMapLink ( myTag , code, zPage, True )
 
         # Primer nivel sin tag, no hace nada pues se hara con base en el tag anterior 
         elif i == 0 and tag == '=': 
@@ -108,11 +109,24 @@ def doCodeRelations( zPage, linkA, tag, myTag ):
             codeB = linkB[ i - 1 ]
             addMapLink ( codeB , code, zPage )
 
-def addMapLink ( myCode1, myCode2, zPage   ): 
+def addMapLink ( myCode1, myCode2, zPage , isTag = False  ): 
 
-    myLink = '{0} -> {1}'.format( sluglify( myCode1 ), sluglify(myCode2))
+    myCode1 = sluglify(myCode1)[:20]
+    mycode2 = sluglify(myCode2)[:20]
+
+    if len(myCode1)==0 or len(mycode2)==0:
+        return 
+
+    if not isTag: addQCode( myCode1 , zPage )
+    addQCode( myCode2, zPage )
+
+    myLink = '{0} -> {1}'.format( myCode1, myCode2)
     if myLink not in zPage.get( 'links' ): 
         zPage.get('links').append( myLink )
+
+def addQCode( myCode, zPage ): 
+    if myCode not in zPage.get( 'codes' ): 
+        zPage.get('codes').append( myCode )
 
 
 def getTag(item):
@@ -121,33 +135,51 @@ def getTag(item):
     se comparara siempre en mayusculas
     """
 
-    if not item[0] in ( NOTE_MARK, TAG_MARK ) :
+    if len(item) == 0 or item[0] not in ( NOTE_MARK, TAG_MARK ) :
         return ''
 
     return  (item.split() or [''])[0].strip().upper()
 
 
-def doDotFile( pageName, folder, zPage ): 
+def doDotFile( pageName,  zPage ): 
     """Creacion del archivo dot 
     """
+
+    zPage['tags'].sort()
+    zPage['links'].sort()
+    zPage['codes'].sort()
 
     pageName = sluglify( pageName )
 
     masterPageIx = 'digraph {rankdir=LR\n\n//sources\n'
-    masterPageIx += 'node [shape=box,shape=box, width=0, height=0, concentrate=true]\n\t'
-    masterPageIx +=  pageName 
+    masterPageIx += 'node [shape=component, width=0, height=0, concentrate=true]\n'
+    masterPageIx += '\t{0} \t[label="{1}"]\n'.format( pageName, pageName  )
 
-    masterPageIx += '\n\n//tags\nnode [style=rounded]\n\n'
+    masterPageIx += '\n\n//tags\nnode [shape=box,width=0, height=0, concentrate=true]\n\n'
+    for myTag in zPage['tags']:
+        masterPageIx += '\t{0} \t[label="{1}"]\n'.format( myTag, myTag  )
 
+    masterPageIx += '\n\n'
     for myTag in zPage['tags']:
         masterPageIx += '\t{0} -> {1}\n'.format( pageName, myTag )
 
-    masterPageIx += '\n\n//QdaLinks\nnode [shape=oval,width=0, height=0, concentrate=true]\n'
+
+    masterPageIx += '\n\n//QdaLinks\nnode [style=rounded, width=0, height=0, concentrate=true]\n'
+    for myTag in zPage['codes']:
+        masterPageIx += '\t{0} \t[label="{1}"]\n'.format( myTag, myTag  )
+
+    masterPageIx += '\n\n'
     for myLink in zPage['links']:
         masterPageIx += '\t{0}\n'.format( myLink  )
 
     masterPageIx += '}\n'
 
+    return masterPageIx
+
+
+def doViewDotFile( pageName, folder, masterPageIx ): 
+    """Crea el archivo fisico, el grafico y  abre xdot 
+    """
     # Crea el archivo 
     import os 
     try:
@@ -160,6 +192,7 @@ def doDotFile( pageName, folder, zPage ):
     outfile.write( masterPageIx )
     outfile.close()
 
+    # Genera el grafico
     try:
         import pygraphviz
         fileNamePng =  '{0}/{1}'.format( folder, 'mapdoc.png' ) 
@@ -171,7 +204,7 @@ def doDotFile( pageName, folder, zPage ):
     except ImportError:
         pass
 
+    # Abre el archivo 
     import subprocess 
     subprocess.Popen(["xdot", fileNameDot ])
 
-    # dot -Tpng mapdoc.dot > mapdoc.png
