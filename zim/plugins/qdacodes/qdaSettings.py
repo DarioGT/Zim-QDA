@@ -76,13 +76,15 @@ create table if not exists qdacodes (
 create table if not exists qdamapcodes (
     id INTEGER PRIMARY KEY,
     code TEXT,
-    codetype TEXT
+    codetype TEXT,
+    unique ( code )
 );
 
 create table if not exists qdamaprels (
     id INTEGER PRIMARY KEY,
     code1 TEXT,
-    code2 TEXT
+    code2 TEXT, 
+    unique ( code1, code2 )
 );
 
 create table if not exists qdamapsource (

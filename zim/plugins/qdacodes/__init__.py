@@ -30,8 +30,8 @@ from qdaCodesDialog import QdaCodesDialog
 from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
 
-from qdaExportMapDoc import doQdaExportMapDoc
-from qdaExportMapDoc import getTag 
+from qdaExport import doQdaExport  
+from qdaExportMapDoc import doQdaExportMapDoc, doDotFile, doViewDotFile, getTag
 
 from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
@@ -55,6 +55,7 @@ class QdaCodesPlugin(PluginClass):
 
         # Permite el indexamiento de la db en batch
         self.allow_index = False
+        self.allow_map = False
 
         # No se usa, se maneja todo con SQL o IN 
         # self.codes_label_re = None
@@ -229,8 +230,6 @@ class QdaCodesPlugin(PluginClass):
         # ~ print '!! Checking for codes in', path
         codes = self._extract_codes(parsetree)
 
-        # qdaMap 
-        zPage = qdaExport.do_MapDocCodes( path, page )
 
         # ~ print 'qCodeS', codes
 
@@ -239,15 +238,18 @@ class QdaCodesPlugin(PluginClass):
             with self.index.db_commit:
                 self._insertTag(path, 0, codes)
 
-            # Do insert with a single commit
-            with self.index.db_commit:
-                self._insertMap(path, zPage)
+            # qdaMap 
+            if self.allow_map : 
+                qdaExp = doQdaExportMapDoc( self   )
+                zPage = qdaExp.do_MapDocCodes( page )
+                with self.index.db_commit:
+                    self._insertMap( zPage)
 
         if codes or qCodesfound:
             self.emit('qdacodes-changed')
 
 
-    def _insertTag(self, page, parentid, children):
+    def _insertTag(self, path, parentid, children):
         # Helper function to insert codes in table
         c = self.index.db.cursor()
         cNumber = 0
@@ -259,24 +261,26 @@ class QdaCodesPlugin(PluginClass):
                 c.execute(
                     'insert into qdacodes(source, parent, citnumber, description, citation, tag)'
                     'values (?, ?, ?, ?, ?, ?)',
-                    (page.id, parentid, cNumber) + tuple(qCode)
+                    (path.id, parentid, cNumber) + tuple(qCode)
                 )
             except: 
                 pass 
 
 
-    def _insertMap(self, page, zPage):
+    def _insertMap(self, zPage):
         # Helper function to insert codes in table
         c = self.index.db.cursor()
 
         # Crea la coleccion de codigos 
-        qdamapcodes  = [tuple([page.basename ,'S'])]
+
+        pageid = zPage['pageid']
+        qdamapcodes  = [tuple([ zPage['name'] ,'S'])]
 
         for myTag in zPage['tags']:
-            qdamapcodes.append( tuple([myLink ,'T']))
+            qdamapcodes.append( tuple([myTag ,'T']))
 
         for myTag in zPage['codes']:
-            qdamapcodes.append( tuple([myLink ,'C']))
+            qdamapcodes.append( tuple([myTag ,'C']))
 
         # Inserta los codigos y sus dependencias a la pagina 
         for myTag in qdamapcodes:
@@ -290,7 +294,7 @@ class QdaCodesPlugin(PluginClass):
             try: 
                 c.execute(
                     'insert into qdamapsource( code, source )'
-                    'values (?, ?)', tuple( [myTag[0], page.id] )
+                    'values (?, ?)', tuple( [myTag[0], pageid ] )
                 )
             except:  pass 
 
@@ -299,7 +303,7 @@ class QdaCodesPlugin(PluginClass):
             try: 
                 c.execute(
                     'insert into qdamaprels( code1, code2 )'
-                    'values (?, ?)', tuple( [myTag.split(' -> ')])
+                    'values (?, ?)', tuple( myTag.split(' -> '))
                 )
             except:  pass 
             
@@ -560,6 +564,7 @@ class QdaCodesPlugin(PluginClass):
 
         self.db_initialized = False
         self.allow_index = True
+        self.allow_map = True
 
         MessageDialog(self.ui, (
             _('Need to index the notebook'),
@@ -575,6 +580,7 @@ class QdaCodesPlugin(PluginClass):
 
         # Retoma el valor de la conf 
         self.allow_index = not self.preferences['batch_clasification']
+        self.allow_map = False 
 
         # Flush + Reload will also initialize qda codes
         if not finished:
@@ -590,18 +596,21 @@ class QdaCodesPlugin(PluginClass):
         
         # Controla el indexamiento por paginas 
         self.allow_index = True
+        self.allow_map = False
         self.ui.save_page()
 
         # Retoma el valor de la conf 
         self.allow_index = not self.preferences['batch_clasification']
 
-        # Genera el mapa  
-        qdaExport =  doQdaExportMapDoc( self  )
+        # Genera el mapa  doQdaExportMapDoc  
+        qdaExp =  doQdaExportMapDoc( self  )
 
-        zPage = qdaExport.do_MapDocCodes( self.ui.path, self.ui.page )
-        dotFile = doDotFile( self.path.basename, zPage )
-        doViewDotFile( self.path.basename, self.page.folder, dotFile  )
+        zPage = qdaExp.do_MapDocCodes( self.ui.page )
+        with self.index.db_commit:
+            self._insertMap(zPage)
 
+        dotFile = doDotFile( zPage )
+        doViewDotFile( self.ui.page.name, self.ui.page.folder, dotFile  )
 
     def qda_codes_show(self):
 

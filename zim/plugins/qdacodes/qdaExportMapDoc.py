@@ -28,20 +28,23 @@ class doQdaExportMapDoc(object):
         self.ui = plugin.ui 
 
 
-    def do_MapDocCodes(self, path, page):
+    def do_MapDocCodes(self, page):
         """ Exporta el mapa del documento  ( ver wiki )
         """
 
         self.page = page   
         self.path = self.ui.notebook.index.lookup_path(self.page )
-        self.pageId = self.path.id    
+        self.pageid = self.path.id    
 
         # La idea es q sea por fuente en la idenxacion del documento                  
         sOrder = 'source, tag, description'
-        sWhere = 'tag <> \'{1}\' and source = {0}'.format( self.pageId, 'QDATITLE' )
+        sWhere = 'tag <> \'{1}\' and source = {0}'.format( self.pageid, 'QDATITLE' )
 
-        pageName = self.path.basename
-        zPage = {  'tags' : [], 'links' : [], 'codes' : [] }
+        pageName = sluglify( self.page.name.split(':')[-1] ) 
+        zPage = {  
+            'name' : pageName, 
+            'pageid': self.pageid, 
+            'tags' : [], 'links' : [], 'codes' : [] }
 
         for row in self.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
@@ -67,9 +70,6 @@ class doQdaExportMapDoc(object):
 
                 if len( tag2 ) == 0 : tag2 = tag0
                 myTag = sluglify(tag2)
-
-                if tag2 != '=' and not myTag in zPage[ 'tags'] :
-                    zPage[ 'tags'].append(myTag)
 
                 doCodeRelations( zPage, linkA, tag2, myTag )
 
@@ -112,21 +112,27 @@ def doCodeRelations( zPage, linkA, tag, myTag ):
 def addMapLink ( myCode1, myCode2, zPage , isTag = False  ): 
 
     myCode1 = sluglify(myCode1)[:20]
-    mycode2 = sluglify(myCode2)[:20]
+    myCode2 = sluglify(myCode2)[:20]
 
-    if len(myCode1)==0 or len(mycode2)==0:
+    if len(myCode1)==0 or len(myCode2)==0:
         return 
 
-    if not isTag: addQCode( myCode1 , zPage )
-    addQCode( myCode2, zPage )
+    addQCode( myCode1, zPage, isTag )
+    addQCode( myCode2, zPage, False  )
 
     myLink = '{0} -> {1}'.format( myCode1, myCode2)
     if myLink not in zPage.get( 'links' ): 
         zPage.get('links').append( myLink )
 
-def addQCode( myCode, zPage ): 
-    if myCode not in zPage.get( 'codes' ): 
-        zPage.get('codes').append( myCode )
+def addQCode( myCode, zPage, isTag  ):
+
+    subCol = 'codes'
+    if isTag:  
+        subCol = 'tags'
+        if myCode == '=': return
+                 
+    if myCode not in zPage[subCol]: 
+        zPage[subCol].append( myCode )
 
 
 def getTag(item):
@@ -141,15 +147,16 @@ def getTag(item):
     return  (item.split() or [''])[0].strip().upper()
 
 
-def doDotFile( pageName,  zPage ): 
+def doDotFile(  zPage ): 
     """Creacion del archivo dot 
     """
+
 
     zPage['tags'].sort()
     zPage['links'].sort()
     zPage['codes'].sort()
 
-    pageName = sluglify( pageName )
+    pageName = sluglify( zPage['name'] )
 
     masterPageIx = 'digraph {rankdir=LR\n\n//sources\n'
     masterPageIx += 'node [shape=component, width=0, height=0, concentrate=true]\n'
