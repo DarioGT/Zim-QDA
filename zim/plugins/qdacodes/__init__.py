@@ -30,6 +30,8 @@ from qdaCodesDialog import QdaCodesDialog
 from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
 
+from qdaExportMapDoc import getTag 
+
 from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
 
@@ -270,8 +272,8 @@ class QdaCodesPlugin(PluginClass):
         # Check line by line only text lines ( tuples = citations )
         for index, item in enumerate(self.lines):
             if not type(item) is tuple:
-                tag = self._getTag(item)
-                if tag[0] in ( NOTE_MARK, TAG_MARK ) :
+                tag = getTag(item)
+                if len (tag) > 0:
                     codes += self._addNewCode( unicode( item ) , index , tag)
 
 #         print codes
@@ -279,13 +281,6 @@ class QdaCodesPlugin(PluginClass):
 
         return codes
 
-    def _getTag(self, item):
-        """
-        El tag es el primer elemento de la linea ( separado por un espacio )
-        se comparara siempre en mayusculas
-        """
-
-        return (item.split() or [''])[0].strip().upper()
 
 
     def _addNewCode(self, items, index , tag0):
@@ -304,7 +299,7 @@ class QdaCodesPlugin(PluginClass):
 
         # Tomas los valores antes de los dos puntos 
         item = items # .split(':')[0]
-        tag = self._getTag(items)
+        tag = getTag(items)
 
         if ( not tag ) or ( len(tag) == 0):
 #             continue 
@@ -510,7 +505,7 @@ class QdaCodesPlugin(PluginClass):
 
         # Genera el mapa  
         from qdaExportMapDoc import doQdaExportMapDoc
-        qdaExport =  doQdaExportMapDoc( self, self )
+        qdaExport =  doQdaExportMapDoc( self  )
         qdaExport.do_ExportMapDoc()
 
     def qda_codes_show(self):
@@ -524,4 +519,6 @@ class QdaCodesPlugin(PluginClass):
 
 # Need to register classes defining gobject signals
 gobject.type_register(QdaCodesPlugin)  # @UndefinedVariable
+
+
 
