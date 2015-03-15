@@ -89,11 +89,11 @@ class doQdaExport(object):
         for tag in zPages:
             zPage = zPages[ tag ]
             newpage = self.qda.plugin.ui.new_page_from_text(zPage,':{0}:CODE-{1}'.format(masterPath, tag), open_page=False)
-            pageName = newpage.name
+            pagename = newpage.name
             
             # Se asegura q sea absoluto ( issue  Win - Linux ) 
-            if pageName[0] != ':' : pageName = ':' + pageName 
-            masterPageIx += '__{}__\n'.format(pageName)
+            if pagename[0] != ':' : pagename = ':' + pagename 
+            masterPageIx += '__{}__\n'.format(pagename)
 
         masterPageIx += '\n'
 
@@ -136,18 +136,13 @@ class doQdaExport(object):
 
 
     def do_exportQdaMaps(self):
-        # zPages = {}
-        # myTag = ''
-        # myCode = ''
-
-        # sOrder = 'tag, description, source, citnumber'
 
         masterPath = self.qda.plugin.preferences['namespace_map']
         sWhere = 'codetype != \'S\''
 
         # Crea las paginas de base 
-        self.qda.plugin.ui.append_text_to_page( ':{0}:codes'.format(masterPath ) , ' ' )
-        self.qda.plugin.ui.append_text_to_page( ':{0}:tags'.format(masterPath ) , ' ' )
+        self.addPage(':{0}:codes'.format(masterPath) , '.') 
+        self.addPage(':{0}:tags'.format(masterPath) , '.')
 
         for row in self.qda.plugin.list_mapcodes( whereStmt=sWhere ):
 
@@ -157,6 +152,10 @@ class doQdaExport(object):
 
             # Codes : qdaMapas:codes:a:abcd 
             if codetype == 'C':   
+                # Pagina de separacion alfabetica 
+                pagename = ':{0}:codes:{1}'.format(masterPath, code[0] )
+                self.addPage( pagename, '.' )
+
                 pagetext = '&{0}'.format( code )
                 pagename = ':{0}:codes:{1}:{2}'.format(masterPath, code[0], code  )
 
@@ -165,8 +164,15 @@ class doQdaExport(object):
                 pagetext = '&{0}'.format( code )
                 pagename = ':{0}:tags:{1}'.format(masterPath,  code  )
 
-            # newpage = self.qda.plugin.ui.new_page_from_text( pagetext , pagename, open_page=False)
-            # pagename = newpage.name
-            self.qda.plugin.ui.append_text_to_page( pagename, pagetext )
+            self.addPage( pagename, pagetext )
             
-        
+    def addPage( self, pagename, pagetext ): 
+
+        newpage = self.qda.plugin.ui.get_page( pagename  )
+        if newpage.hascontent: return 
+
+        self.qda.plugin.ui.append_text_to_page( pagename, pagetext )
+
+        # newpage = self.qda.plugin.ui.new_page_from_text( pagetext , pagename, open_page=False)
+        # pagename = newpage.name
+        # self.qda.plugin.ui.append_text_to_page( pagename, pagetext )
