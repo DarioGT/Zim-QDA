@@ -31,7 +31,9 @@ from qdaCodesTreeView import QdaCodesTreeView
 from qdaTagListTreeView import TagListTreeView
 
 from qdaExport import doQdaExport  
-from qdaExportMapDoc import doQdaExportMapDoc, doDotFile, doViewDotFile, getTag
+
+from qdaExportMapDoc import doQdaExportMapDoc
+from qdaExportTools import doCodeRelations, doDotFile, doViewDotFile, getTag
 
 from qdaSettings import logger, ui_actions, ui_xml, _tag_re, _NO_TAGS, SQL_FORMAT_VERSION, SQL_CREATE_TABLES
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
@@ -586,6 +588,14 @@ class QdaCodesPlugin(PluginClass):
             self.db_initialized = False
             return
 
+    def qda_codes_show(self):
+
+        if not self.db_initialized:
+            self.qda_index_all()
+
+        dialog = QdaCodesDialog.unique(self, plugin=self)
+        dialog.present()
+
 
     def qda_index_page(self):
 
@@ -611,14 +621,15 @@ class QdaCodesPlugin(PluginClass):
         dotFile = doDotFile( zPage )
         doViewDotFile( self.ui.page.name, self.ui.page.folder, dotFile  )
 
-    def qda_codes_show(self):
 
-        if not self.db_initialized:
-            self.qda_index_all()
+    def qda_show_map(self):
 
-        dialog = QdaCodesDialog.unique(self, plugin=self)
-        dialog.present()
-
+        # Genera el mapa  doQdaExportMapDoc  
+        qdaExp =  doQdaExportMapDoc( self  )
+        
+        zPage = qdaExp.do_showMap( self.ui.page )
+        dotFile = doDotFile( zPage )
+        doViewDotFile( self.ui.page.name, self.ui.page.folder, dotFile  )
 
 # Need to register classes defining gobject signals
 gobject.type_register(QdaCodesPlugin)  # @UndefinedVariable

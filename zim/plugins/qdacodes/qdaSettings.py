@@ -23,6 +23,8 @@ ui_actions = (
     ('qda_codes_show', 'zim-qda', _('Qda Show'), '<shift><alt>Q', _('Qda Show'), True),
     ('qda_index_all', 'zim-qda-ix', _('Qda IndexAll'), '', _('Qda IndexAll'), True),
     ('qda_index_page', 'zim-qda-ip', _('Qda IndexPage'), '<shift><ctrl>Q', _('Qda IndexPage'), True),
+
+    ('qda_show_map', 'zim-show-map', _('Qda ShowMap'), '<shift><ctrl>M', _('Qda ShowMap'), True),
 )
 
 
@@ -41,6 +43,11 @@ ui_xml = '''
             <placeholder name='plugin_items'>
                 <menuitem action='qda_index_all'/>
             </placeholder>
+
+            <placeholder name='plugin_items'>
+                <menuitem action='qda_show_map'/>
+            </placeholder>
+
         </menu>
     </menubar>
     <toolbar name='toolbar'>
