@@ -135,7 +135,7 @@ class QdaCodesPlugin(PluginClass):
         else :
             excluded = []
 
-        excluded.append(self.preferences['namespace'])
+        excluded.append(self.preferences['namespace_qda'])
         excluded.sort(key=lambda s: len(s), reverse=True)  # longest first
         excluded_re = '^(' + '|'.join(map(re.escape, excluded)) + ')(:.+)?$'
 
@@ -530,22 +530,21 @@ class QdaCodesPlugin(PluginClass):
         '''
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            sqlStmt = 'select * from qdamapcodes where {0}'.format(whereStmt)
+            sqlStmt = 'select * from qdamapcodes where {0} order by codetype'.format(whereStmt)
             cursor.execute(sqlStmt)
             for row in cursor:
                 yield row
 
-    def list_maprels(self, whereStmt='1=2'):
+    def list_maprels(self, whereStmt='1=2', orderBy='code1'):
         '''List mapcodes 
         @returns: a list of map codes at this level as sqlite Row objects
         '''
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            sqlStmt = 'select * from qdamaprels where {0}'.format(whereStmt)
+            sqlStmt = 'select * from qdamaprels where {0} order by {1}'.format(whereStmt, orderBy)
             cursor.execute(sqlStmt)
             for row in cursor:
                 yield row
-
 
 
     def get_code(self, qCodeid):

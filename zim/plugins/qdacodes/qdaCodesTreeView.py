@@ -364,5 +364,5 @@ class QdaCodesTreeView(BrowserTreeView):
         
         from qdaExport import doQdaExport  
         qdaExp =  doQdaExport( self   )
-        qdaExp.do_export()
+        qdaExp.do_exportQdaCodes()
         

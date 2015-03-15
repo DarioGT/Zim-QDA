@@ -22,22 +22,29 @@ class doQdaExport(object):
         self.qda = qda 
 
 
-    def do_delete_QDA(self):
-        """ Borra el Namespace de exportacion
-        """
-        if not self.qda.plugin.preferences['add_on_export']: 
-            masterPath = self.qda.plugin.preferences['namespace']
-            self.qda.plugin.ui.delete_page(Path(masterPath)) 
+    def do_exportQdaCodes(self):
+
+        if self.qda.plugin.preferences['export_tags'] :
+            self.do_exportQdaTags()
+
+        if self.qda.plugin.preferences['export_tocs'] :
+            self.do_table_of_contents()
+            
+        if self.qda.plugin.preferences['export_maps'] :
+            self.do_exportQdaMaps()
+
 
         
-    def do_export(self):
+    def do_exportQdaTags(self):
 
         zPages = {}
         myTag = ''
         myCode = ''
 
+        # Borra el Namespace de exportacion
+        masterPath = self.qda.plugin.preferences['namespace_qda']
+        self.qda.plugin.ui.delete_page(Path(masterPath)) 
 
-        self.do_delete_QDA()
 
         sWhere = self.qda._getWStmt(self.qda.plugin.preferences['qda_labels'])
         sOrder = 'tag, description, source, citnumber'
@@ -70,7 +77,7 @@ class doQdaExport(object):
 
             # Break by Page
             try: 
-                zPages[ myTag ] += '[[{0}]]  **{1}**\n'.format(source, nroCita)
+                zPages[ myTag ] += '__{0}__  {1}\n'.format(source, nroCita)
                 zPages[ myTag ] += '{}\n\n'.format(row['citation'].decode('utf-8'))
             except: 
                 pass 
@@ -78,42 +85,32 @@ class doQdaExport(object):
 
         masterPageIx = '====== Summary ======\nCreated: {}\n\n'.format(datetime.now().isoformat())
 
-        masterPath = self.qda.plugin.preferences['namespace']
+        masterPath = self.qda.plugin.preferences['namespace_qda']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.qda.plugin.ui.new_page_from_text(zPage , ':{0}:CODE-{1}'.format(masterPath, tag)  , open_page=False)
+            newpage = self.qda.plugin.ui.new_page_from_text(zPage,':{0}:CODE-{1}'.format(masterPath, tag), open_page=False)
             pageName = newpage.name
             
             # Se asegura q sea absoluto ( issue  Win - Linux ) 
             if pageName[0] != ':' : pageName = ':' + pageName 
-            masterPageIx += '[[{}]]\n'.format(pageName)
+            masterPageIx += '__{}__\n'.format(pageName)
 
         masterPageIx += '\n'
 
         self.qda.plugin.ui.append_text_to_page(masterPath , masterPageIx)
 
-        # TOC
-        if self.qda.plugin.preferences['table_of_contents'] :
-            self.do_table_of_contents()
-            
-        if self.qda.plugin.preferences['map_codes'] :
-            self.do_map_detail(True)
-
-        if self.qda.plugin.preferences['map_pages'] :
-            self.do_map_detail(False)
-
         # Open de index page ( QDA Namespace root )
-        newpage = Path(masterPath)
+        # newpage = Path(masterPath)
         # self.qda.ui.open_page(newpage)
 
     def do_table_of_contents(self):
 
-        masterPath = self.qda.plugin.preferences['namespace']
+        masterPath = self.qda.plugin.preferences['namespace_qda']
         sWhere = 'tag = \'{}\''.format(NOTE_AUTOTITLE)
         sOrder = 'source, citnumber'
         mySource = ''
 
-        masterPageIx = '\n====== Table of contents ======\n'
+        masterPageIx = '\n====== Tables of contents ======\n'
 
         for row in self.qda.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
 
@@ -138,139 +135,38 @@ class doQdaExport(object):
         self.qda.plugin.ui.append_text_to_page(masterPath , masterPageIx + '\n')
 
 
+    def do_exportQdaMaps(self):
+        # zPages = {}
+        # myTag = ''
+        # myCode = ''
 
+        # sOrder = 'tag, description, source, citnumber'
 
-    def do_map_detail(self, byTag):
-        """
-        Por cada codigo genera las fuentes con formato record y label
-        Genera una lista de codigos con su label
-        genera la conexion de cada autor con los codigos
-        si existen jerarquias ( listas separadas por , ) las presenta encadendas
-        cuando hay conceptos jerarquizados no deberia vincularlos a la fuente
-        """
+        masterPath = self.qda.plugin.preferences['namespace_map']
+        sWhere = 'codetype != \'S\''
 
-        masterPath = self.qda.plugin.preferences['namespace']
+        # Crea las paginas de base 
+        self.qda.plugin.ui.append_text_to_page( ':{0}:codes'.format(masterPath ) , ' ' )
+        self.qda.plugin.ui.append_text_to_page( ':{0}:tags'.format(masterPath ) , ' ' )
 
-        sWhere = self.qda._getWStmt(self.qda.plugin.preferences['qda_labels'])
-
-        if byTag: 
-            sOrder = 'tag, source, description'
-        else :
-            sOrder = 'source, tag, description'
-
-
-        myTag = ''
-        mySource = ''
-        myCode = ''
-        zPages = {}
-
-        for row in self.qda.plugin.list_codes(parent=None, orderBy=sOrder, whereStmt=sWhere):
-            path = self.qda.plugin.get_path(row)
-            if path is None: continue
+        for row in self.qda.plugin.list_mapcodes( whereStmt=sWhere ):
 
             # Format description
-            tag = row['tag'].decode('utf-8').strip()
-            code = row['description'].decode('utf-8').strip()
-            source = path.name 
+            code = row['code'].decode('utf-8')
+            codetype = row['codetype'].decode('utf-8')
 
-            # Solo la marca, por ejemplo Keywords 
-            if len (code) == 0: 
-                continue
+            # Codes : qdaMapas:codes:a:abcd 
+            if codetype == 'C':   
+                pagetext = '&{0}'.format( code )
+                pagename = ':{0}:codes:{1}:{2}'.format(masterPath, code[0], code  )
 
-            if not byTag:
-                # Break by Source ( Invierte las variables ) 
-                sAux = source
-                source = tag 
-                tag = sAux 
-                
-            # Break by Tag
-            if tag != myTag:
-                myTag = tag
-                mySource = ''
-                myCode = ''
+            # Tags : qdaMapas:tags:xxxx 
+            else : 
+                pagetext = '&{0}'.format( code )
+                pagename = ':{0}:tags:{1}'.format(masterPath,  code  )
 
-                zPages[ myTag ] = { 'sources' : [], 'codes' : [], 'links' : [] }
-
-            # Break by source
-            try: 
-                if source != mySource:
-                    mySource = source
-                    zPages[ myTag ][ 'sources'].append(mySource)
-            except: 
-                pass 
-
-            # Break by Code ( links [[]]
-            try: 
-                if code != myCode:
-                    myCode = code
-                    myLink = [ sluglify(i.strip())  for i in code.split(',') ]
-                    zPages[ myTag ][ 'links'].append([ mySource ] + myLink)
-                    zPages[ myTag ][ 'codes'].extend(myLink)
-            except: 
-                pass 
-
-
-        if byTag: 
-#             masterPageIx = '\n====== Codification detail ======\n'
-            prefixPage = 'MAP-CODES'
-
-        else : 
-#             masterPageIx = '\n====== Source detail ======\n'
-            prefixPage = 'MAP-PAGES'
-
-
-        pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
-        self.qda.plugin.ui.append_text_to_page( pageName , '======== {0} =========\n\n'.format( prefixPage  ) )
-
-
-        # sort ( vector )
-        zPagesSort = []          
-        for tag in zPages:
-            zPagesSort.append(tag)
-        zPagesSort.sort()
-
-        for tag in zPagesSort:
-            zPage = zPages[ tag ]
-
-            masterPageIx = '======= {} =======\n\n'.format(tag)
-            masterPageIx += 'digraph {rankdir=LR;node [shape=register]\n\n//sources\n'
-
-            zPage['sources'] = list(set(zPage['sources']))
-            zPage['sources'].sort()
-            for source in zPage['sources']:
-                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(source), source )
-
-
-            masterPageIx += '\n//QdaCodes\nnode [shape=oval]\n'
-            zPage['codes'] = list(set(zPage['codes']))
-            zPage['codes'].sort()
-            for code in zPage['codes']:
-                masterPageIx += '\t{0} \t[label="{1}"]\n'.format( sluglify(code), code  )
-
-
-            masterPageIx += '\n//QdaLinks\n'
-
-            # Aplana los links para no agregar codigos duplicados
-            myLinks = []
-            for link in zPage['links']:
-                for i in range(0, len (link) - 1):
-                    myLinks.append('{0} -> {1}'.format( sluglify(link[i]), sluglify(link[i + 1])))
-
-            myLinks = list(set(myLinks))
-            myLinks.sort()
-            for link in myLinks:
-                masterPageIx += '\t{}\n'.format(link)
-
-            masterPageIx += '}\n'
-
-            # Crea la pagina con el fuente del graphviz
-            pageName =  ':{0}:{1}:{2}'.format(masterPath, prefixPage, tag) 
-            self.qda.plugin.ui.append_text_to_page( pageName , masterPageIx + '\n')
-
-            # Add index 
-            masterPageIx = '[[{}]]\n'.format(pageName)
-            pageName = ':{0}:{1}'.format(masterPath, prefixPage) 
-            self.qda.plugin.ui.append_text_to_page( pageName , masterPageIx )
-
-            # =================  Agrega el contenido despues del mapa     
+            # newpage = self.qda.plugin.ui.new_page_from_text( pagetext , pagename, open_page=False)
+            # pagename = newpage.name
+            self.qda.plugin.ui.append_text_to_page( pagename, pagetext )
+            
         

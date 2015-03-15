@@ -130,18 +130,15 @@ plugin_preferences = (
     ('excluded_subtrees', 'string', _('Subtree(s) to ignore'), '', check_class_allow_empty),
 
     # T: namespace for summary 
-    ('namespace', 'string', _('Namespace'), ':QdaCodes'),
+    ('namespace_qda', 'string', _('Qda Namespace'), ':QdaCodes'),
+    ('namespace_map', 'string', _('Maps Namespace'), ':QdaMaps'),
 
     # T: Batch code clasification 
-    ('batch_clasification', 'bool', _('Batch code clasification'), False),
+    ('batch_clasification', 'bool', _('Batch code clasification'), True),
 
-    ('add_on_export', 'bool', _('Add on export'), False ),
-
-    ('table_of_contents', 'bool', _('Table of Contents'), True ),
-
-    ('map_codes', 'bool', _('Map codes'), True ),
-    ('map_pages', 'bool', _('Map pages'), True ),
-    
+    ('export_tags', 'bool', _('Export summary'), False ),
+    ('export_maps', 'bool', _('Export maps'), True ),
+    ('export_tocs', 'bool', _('Export table of contents'), False ),
 )
 
 # Rebuild database table if any of these preferences changed.
