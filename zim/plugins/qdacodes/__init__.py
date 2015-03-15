@@ -119,7 +119,7 @@ class QdaCodesPlugin(PluginClass):
         # regex = r'^(' + '|'.join(map(re.escape, self.codes_labels)) + r')(?!\w)'
         # self.codes_label_re = re.compile(regex)
 
-        # Si el indexamiento es en batch, no permite indexamiento onlin
+        # Si el indexamiento es en batch, no permite indexamiento automatico
         self.allow_index = not self.preferences['batch_clasification']
 
         # Parametros de exclusion e inclusion

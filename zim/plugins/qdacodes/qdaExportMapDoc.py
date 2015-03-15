@@ -92,19 +92,6 @@ class doQdaExportMapDoc(object):
         """
         self.page = page   
 
-        """ TODO: Podria obtener todos los ids q tengan este concepto,  
-        y luego validar que cada concepto en el diagrama halla sido tratado 
-        por los documentos q lo relacionan, esto es particularmente valido con los autores
-        pues no deberia relacionarse un autor con un concepto q no ha tratado 
-
-        pero por ejmplo al explorar un concepto, valdria la pena ver todas las relaciones 
-        q puede tener; o sea q solo seria cuestion de controlar los autores 
-
-
-        Simplemente no mapear los vinculos a las fuentes ( sources ) pues multiples autores pueden hablar del tema 
-        Si se quieren presentar varios conceptos en el mismo diagrama, hacer un vinculo y luego borrarlo manualmente 
-        Si se quieren incluir otros archivos hacer un vinculo tambien 
-        """
 
         # La idea es q sea por fuente en la idenxacion del documento                  
         self.pageName = sluglify( self.page.name.split(':')[-1] ) 

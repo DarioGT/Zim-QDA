@@ -88,7 +88,7 @@ class doQdaExport(object):
         masterPath = self.qda.plugin.preferences['namespace_qda']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.qda.plugin.ui.new_page_from_text(zPage,'{0}:CODE-{1}'.format(masterPath, tag), open_page=False)
+            newpage = self.qda.plugin.ui.new_page_from_text(zPage,'{0}:CODE-{1}'.format(masterPath, sluglify(tag), open_page=False))
             pagename = newpage.name
             
             # Se asegura q sea absoluto ( issue  Win - Linux ) 
