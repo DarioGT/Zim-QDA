@@ -99,12 +99,17 @@ class doQdaExportMapDoc(object):
 
         pero por ejmplo al explorar un concepto, valdria la pena ver todas las relaciones 
         q puede tener; o sea q solo seria cuestion de controlar los autores 
+
+
+        Simplemente no mapear los vinculos a las fuentes ( sources ) pues multiples autores pueden hablar del tema 
+        Si se quieren presentar varios conceptos en el mismo diagrama, hacer un vinculo y luego borrarlo manualmente 
+        Si se quieren incluir otros archivos hacer un vinculo tambien 
         """
 
         # La idea es q sea por fuente en la idenxacion del documento                  
-        pageName = sluglify( self.page.name.split(':')[-1] ) 
+        self.pageName = sluglify( self.page.name.split(':')[-1] ) 
         self.zPage = {  
-            'name' : pageName, 
+            'name' : self.pageName, 
             'pageid': 0, 
             'links'   : [], 
             'sources' : [], 
@@ -113,7 +118,7 @@ class doQdaExportMapDoc(object):
             }
 
 
-        sWhere = 'code = \'{0}\''.format( pageName )
+        sWhere = 'code = \'{0}\''.format( self.pageName )
         for row in self.plugin.list_mapcodes( whereStmt=sWhere ):
 
             # Format description
@@ -140,12 +145,13 @@ class doQdaExportMapDoc(object):
 
             # recupera los codigos y los tipos 
             code1 = row['code1'].decode('utf-8')
-            code2 = row['code2'].decode('utf-8')
             ctype1 = row['ctype1'].decode('utf-8')
-            ctype2 = row['ctype2'].decode('utf-8')
 
-            #  Los autores siempre son code1, 
-            # if ctype1 == 'S': 
+            #  Los autores siempre son code1, no se dib
+            if ctype1 == 'S' and code1 != self.pageName :  continue 
+
+            code2 = row['code2'].decode('utf-8')
+            ctype2 = row['ctype2'].decode('utf-8')
 
             # Inserta la relacion y verifica si el nodo ya existe para no caer en un loop infinito 
             if not self.addMapRel( goFF, code1, code2, ctype1, ctype2 ): 

@@ -138,7 +138,7 @@ plugin_preferences = (
 
     # T: namespace for summary 
     ('namespace_qda', 'string', _('Qda Namespace'), ':QdaCodes'),
-    ('namespace_map', 'string', _('Maps Namespace'), ':QdaMaps'),
+    ('namespace_map', 'string', _('Maps Namespace'), ':QdaIndex'),
 
     # T: Batch code clasification 
     ('batch_clasification', 'bool', _('Batch code clasification'), True),

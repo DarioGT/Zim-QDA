@@ -88,7 +88,7 @@ class doQdaExport(object):
         masterPath = self.qda.plugin.preferences['namespace_qda']
         for tag in zPages:
             zPage = zPages[ tag ]
-            newpage = self.qda.plugin.ui.new_page_from_text(zPage,':{0}:CODE-{1}'.format(masterPath, tag), open_page=False)
+            newpage = self.qda.plugin.ui.new_page_from_text(zPage,'{0}:CODE-{1}'.format(masterPath, tag), open_page=False)
             pagename = newpage.name
             
             # Se asegura q sea absoluto ( issue  Win - Linux ) 
@@ -137,12 +137,14 @@ class doQdaExport(object):
 
     def do_exportQdaMaps(self):
 
+        # Viene formateado absoluto :xxx:xxx  
         masterPath = self.qda.plugin.preferences['namespace_map']
         sWhere = 'codetype != \'S\''
 
         # Crea las paginas de base 
-        self.addPage(':{0}:codes'.format(masterPath) , '.') 
-        self.addPage(':{0}:tags'.format(masterPath) , '.')
+        self.addDummyPage('{0}'.format(masterPath) ) 
+        self.addDummyPage('{0}:codes'.format(masterPath) ) 
+        self.addDummyPage('{0}:tags'.format(masterPath) )
 
         for row in self.qda.plugin.list_mapcodes( whereStmt=sWhere ):
 
@@ -153,22 +155,24 @@ class doQdaExport(object):
             # Codes : qdaMapas:codes:a:abcd 
             if codetype == 'C':   
                 # Pagina de separacion alfabetica 
-                pagename = ':{0}:codes:{1}'.format(masterPath, code[0] )
-                self.addPage( pagename, '.' )
+                pagename = '{0}:codes:{1}'.format(masterPath, code[0] )
+                self.addDummyPage( pagename )
 
                 pagetext = '&{0}'.format( code )
-                pagename = ':{0}:codes:{1}:{2}'.format(masterPath, code[0], code  )
+                pagename = '{0}:codes:{1}:{2}'.format(masterPath, code[0], code  )
 
             # Tags : qdaMapas:tags:xxxx 
             else : 
                 pagetext = '&{0}'.format( code )
-                pagename = ':{0}:tags:{1}'.format(masterPath,  code  )
+                pagename = '{0}:tags:{1}'.format(masterPath,  code  )
 
-            self.addPage( pagename, pagetext )
+            self.addDummyPage( pagename, pagetext )
             
-    def addPage( self, pagename, pagetext ): 
+    def addDummyPage( self, pagename, pagetext = 'qdaAuto'): 
+        """Crea la pagina en la estructura, si existe, no la toca 
+        """
 
-        newpage = self.qda.plugin.ui.get_page( pagename  )
+        newpage = self.qda.plugin.ui.notebook.get_page( Path( pagename ))
         if newpage.hascontent: return 
 
         self.qda.plugin.ui.append_text_to_page( pagename, pagetext )
