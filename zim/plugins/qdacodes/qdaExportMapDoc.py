@@ -8,7 +8,7 @@ from zim.notebook import Path
 from qdaSettings import sluglify
 from qdaSettings import NOTE_MARK, NOTE_AUTOTITLE
 
-from qdaExportTools import doCodeRelations
+from qdaExportTools import doCodeRelations, getTag 
 
 SEP__TAG = ';'
 
@@ -40,10 +40,10 @@ class doQdaExportMapDoc(object):
         sWhere = 'tag <> \'{1}\' and source = {0}'.format( self.pageid, 'QDATITLE' )
 
         pageName = sluglify( self.page.name.split(':')[-1] ) 
-        zPage = {  
+        self.zPage = {  
             'name' : pageName, 
             'pageid': self.pageid, 
-            'sources' : [ pagename ], 
+            'sources' : [ pageName ], 
             'tags' : [], 
             'links' : [], 
             'codes' : [] 
@@ -74,18 +74,36 @@ class doQdaExportMapDoc(object):
                 if len( tag2 ) == 0 : tag2 = tag0
                 myTag = sluglify(tag2)
 
-                doCodeRelations( zPage, linkA, tag2, myTag )
+                doCodeRelations( self.zPage, linkA, tag2, myTag )
 
-        return zPage 
+
+        #  Agrega las relaciones del archivo con los tags 
+        for myTag in self.zPage['tags']:
+            myLink = '{0} -> {1}'.format( pageName, myTag)
+            self.zPage.get('links').append( myLink )
+
+
+        return self.zPage 
+
+
 
     def do_ShowMap(self, page):
         """ Exporta el mapa del documento  ( ver wiki )
         """
         self.page = page   
 
+        """ TODO: Podria obtener todos los ids q tengan este concepto,  
+        y luego validar que cada concepto en el diagrama halla sido tratado 
+        por los documentos q lo relacionan, esto es particularmente valido con los autores
+        pues no deberia relacionarse un autor con un concepto q no ha tratado 
+
+        pero por ejmplo al explorar un concepto, valdria la pena ver todas las relaciones 
+        q puede tener; o sea q solo seria cuestion de controlar los autores 
+        """
+
         # La idea es q sea por fuente en la idenxacion del documento                  
         pageName = sluglify( self.page.name.split(':')[-1] ) 
-        zPage = {  
+        self.zPage = {  
             'name' : pageName, 
             'pageid': 0, 
             'links'   : [], 
@@ -95,51 +113,57 @@ class doQdaExportMapDoc(object):
             }
 
 
-        sWhere = 'code = \'{1}\''.format( pageName )
-        for row in self.qda.plugin.list_mapcodes( whereStmt=sWhere ):
+        sWhere = 'code = \'{0}\''.format( pageName )
+        for row in self.plugin.list_mapcodes( whereStmt=sWhere ):
 
             # Format description
             code = row['code'].decode('utf-8')
             ctype = row['codetype'].decode('utf-8')
 
-            addMapRelCode( self, zPage, code, ctype  )
+            # Inserta el codigo central del mapa 
+            self.addMapRelCode( code, ctype  )
 
             # Recorre hacia adelante u atraz
-            self.getLinks( zPage, code, True  )
-            self.getLinks( zPage, code, False  )
+            self.getLinks( code, True  )
+            self.getLinks( code, False  )
 
-        return zPage 
+        return self.zPage 
 
-    def getLinks(self, zPage, code, goFF ):
+
+    def getLinks(self, code, goFF ):
         # recorre recursivamente el arbol en una unica direccion 
         if goFF: 
-            sWhere = 'code1 = \'{1}\''.format( pageName )
-        else: sWhere = 'code2 = \'{1}\''.format( pageName )
+            sWhere = 'code1 = \'{0}\''.format( code )
+        else: sWhere = 'code2 = \'{0}\''.format( code )
 
-        for row in self.qda.plugin.list_maprels( whereStmt=sWhere ):
+        for row in self.plugin.list_maprels( whereStmt=sWhere ):
 
             # recupera los codigos y los tipos 
             code1 = row['code1'].decode('utf-8')
             code2 = row['code2'].decode('utf-8')
-            ctype1 = 'C' # row['codetype1'].decode('utf-8')
-            ctype2 = 'C' # row['codetype2'].decode('utf-8')
+            ctype1 = row['ctype1'].decode('utf-8')
+            ctype2 = row['ctype2'].decode('utf-8')
+
+            #  Los autores siempre son code1, 
+            # if ctype1 == 'S': 
 
             # Inserta la relacion y verifica si el nodo ya existe para no caer en un loop infinito 
-            if not self.addMapRel( zPage, goFF, code1, code2, ctype1, ctype2 ): 
-                break
+            if not self.addMapRel( goFF, code1, code2, ctype1, ctype2 ): 
+                continue 
 
-            if not self.getLinks(self, zPage, code, goFF ): 
-                break 
+            # Continua navegando en la misma direccion, ff ahora mi nodo2 es mi base 
+            if goFF: 
+                code = code2
+            else: code = code1
+            self.getLinks( code, goFF )
 
-        return zPage 
 
-
-    def addMapRel( self, zPage, goFF, code1, code2, ctype1, ctype2  ):
+    def addMapRel( self, goFF, code1, code2, ctype1, ctype2  ):
         # Inserta los vinculos para el mapa generico 
 
         myLink = '{0} -> {1}'.format( code1, code2 )
-        if myLink not in zPage.get( 'links' ): 
-            zPage.get('links').append( myLink )
+        if myLink not in self.zPage.get( 'links' ): 
+            self.zPage.get('links').append( myLink )
 
         if goFF: 
             # Si voy FF solo tengo q insertar y verificar el segundo codigo ( si existe para )
@@ -150,21 +174,21 @@ class doQdaExportMapDoc(object):
             code = code1
             ctype = ctype1
 
-        return self.addMapRelCode( self, zPage, code,  ctype  )
+        return self.addMapRelCode( code,  ctype  )
 
 
-    def addMapRelCode( self, zPage, code, ctype  ):
+    def addMapRelCode( self, code, ctype  ):
         # Inserta los codigos para el mapa generico 
 
         if ctype == 'T': subCol = 'tags'
         elif ctype == 'S': subCol = 'sources'
         elif ctype == 'C': subCol = 'codes'
 
-        if code not in zPage[ subCol ]: 
-            zPage[subCol].append( myCode )
-            return true 
+        if code not in self.zPage[ subCol ]: 
+            self.zPage[subCol].append( code )
+            return True 
 
-        return false 
+        return False 
 
 
 

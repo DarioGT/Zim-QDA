@@ -543,7 +543,13 @@ class QdaCodesPlugin(PluginClass):
         '''
         if self.db_initialized:
             cursor = self.index.db.cursor()
-            sqlStmt = 'select * from qdamaprels where {0} order by {1}'.format(whereStmt, orderBy)
+
+
+            sqlStmt = "select code1, code2, c1.codetype as ctype1 , c2.codetype as ctype2"
+            sqlStmt += " from qdamaprels as r, qdamapcodes as c1, qdamapcodes as c2"
+            sqlStmt += " where r.code1 = c1.code"
+            sqlStmt += " and r.code2 = c2.code"
+            sqlStmt += " and {0} order by {1}".format(whereStmt, orderBy)
             cursor.execute(sqlStmt)
             for row in cursor:
                 yield row
@@ -627,7 +633,7 @@ class QdaCodesPlugin(PluginClass):
         # Genera el mapa  doQdaExportMapDoc  
         qdaExp =  doQdaExportMapDoc( self  )
         
-        zPage = qdaExp.do_showMap( self.ui.page )
+        zPage = qdaExp.do_ShowMap( self.ui.page )
         dotFile = doDotFile( zPage )
         doViewDotFile( self.ui.page.name, self.ui.page.folder, dotFile  )
 

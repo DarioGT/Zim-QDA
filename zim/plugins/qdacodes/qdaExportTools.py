@@ -4,7 +4,7 @@ Created on Mar 13, 2015
 @author: dario
 '''
 
-from qdaSettings import sluglify, NOTE_AUTOTITLE
+from qdaSettings import sluglify, NOTE_MARK, NOTE_AUTOTITLE
 
 SEPLISTA = '-'
 SEP_CODE = ','
@@ -96,21 +96,23 @@ def doDotFile(  zPage ):
     masterPageIx = 'digraph {rankdir=LR\n\n//sources\n'
     masterPageIx += 'node [shape=component, width=0, height=0, concentrate=true]\n'
     for myTag in zPage['sources']:
-        masterPageIx += '\t{0} \t[label="{1}"]\n'.format( myTag, myTag  )
+        myStyle = 'none'
+        if myTag == pageName: myStyle = 'filled'
+        masterPageIx += '\t{0} \t[label="{1}", style={2}]\n'.format( myTag, myTag, myStyle  )
 
 
     masterPageIx += '\n\n//tags\nnode [shape=box,width=0, height=0, concentrate=true]\n\n'
     for myTag in zPage['tags']:
-        masterPageIx += '\t{0} \t[label="{1}"]\n'.format( myTag, myTag  )
-
-    masterPageIx += '\n\n'
-    for myTag in zPage['tags']:
-        masterPageIx += '\t{0} -> {1}\n'.format( pageName, myTag )
+        myStyle = 'none'
+        if myTag == pageName: myStyle = 'filled'
+        masterPageIx += '\t{0} \t[label="{1}", style={2}]\n'.format( myTag, myTag, myStyle )
 
 
-    masterPageIx += '\n\n//QdaLinks\nnode [style=rounded, width=0, height=0, concentrate=true]\n'
+    masterPageIx += '\n\n//QdaLinks\nnode [width=0, height=0, concentrate=true]\n'
     for myTag in zPage['codes']:
-        masterPageIx += '\t{0} \t[label="{1}"]\n'.format( myTag, myTag  )
+        myStyle = 'rounded'
+        if myTag == pageName: myStyle = 'diagonals'
+        masterPageIx += '\t{0} \t[label="{1}",style={2}]\n'.format( myTag, myTag, myStyle )
 
     masterPageIx += '\n\n'
     for myLink in zPage['links']:
